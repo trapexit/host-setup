@@ -1,0 +1,7 @@
+#!/bin/sh
+
+rsync \
+    -avP \
+    --update \
+    files/ \
+    /

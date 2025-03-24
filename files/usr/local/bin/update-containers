@@ -1,0 +1,15 @@
+#!/bin/sh
+set -x
+
+cd /docker/docker-compose/
+docker \
+    compose \
+    pull \
+    --ignore-buildable \
+    --ignore-pull-failures \
+    --include-deps
+
+docker \
+    compose \
+    up \
+    -d

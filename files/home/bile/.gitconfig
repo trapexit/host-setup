@@ -1,0 +1,29 @@
+[user]
+        email = trapexit@spawn.link
+        name = Antonio SJ Musumeci
+
+[alias]
+        checkpoint = commit -a -m checkpoint
+        cp = commit -a -m checkpoint
+        cpa = commit -a --amend -m checkpoint
+        last = log -1 HEAD
+        amend = commit -a --amend
+[safe]
+	directory = *
+[rerere]
+	enabled = true
+[branch]
+	sort = -committerdate
+[maintenance]
+	repo = /home/bile/dev/mergerfs
+[core]
+	autocrlf = input
+[init]
+	defaultBranch = master
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[push]
+	autoSetupRemote = true

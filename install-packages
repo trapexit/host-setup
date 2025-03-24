@@ -1,0 +1,10 @@
+#!/bin/sh
+
+apt update -y
+apt install -y \
+    sshfs \
+    podman \
+    podman-docker \
+    podman-compose \
+    tmux \
+    emacs-nox
