@@ -1,7 +1,15 @@
 #!/bin/sh
 set -x
 
-cd /docker/docker-compose/
+if [ -e "/docker/docker-compose.yml" ]; then
+    cd /docker
+elif [ -e "/docker/docker-compose/docker-compose.yml" ]; then
+    cd /docker/docker-compose/
+else
+    echo "No docker-compose.yml found"
+    exit 1
+fi
+
 docker \
     compose \
     pull \
