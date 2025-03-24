@@ -1,82 +1,81 @@
-#!/bin/bash
-set -x
+#!/usr/bin/env python3
 
-for filepath in "$@"
-do
-    src="${filepath}"
-    src=$(realpath -- "${src}")
-    srcdir=$(dirname "${src}")
-    filename=$(basename -- "${src}")
-    ext="${filename##*.}"
-    dst="${srcdir}/fixed_${filename}"
+import subprocess
+import os
+import sys
+import argparse
 
-    if [[ "${src}" =~ \.stream\.flv$ ]]; then
-	echo "Skipping ${src}"
-	continue
-    fi
 
-    if [[ "${src}" =~ \.failed$ ]]; then
-	echo "Skipping ${src}"
-	continue
-    fi
-    
-    tmpfile="$(mktemp -u -p "${srcdir}").${ext}"
+def fix_video_pass_1(filepath):
+    input_filepath = os.path.realpath(filepath)
+    basepath = os.path.dirname(input_filepath)
+    filename = os.path.basename(input_filepath)
+    filename,ext = os.path.splitext(filename)
+    ffmpeg_input_filepath = f'file:{input_filepath}'
 
-    if [ -z "${ignore_error}" ]; then
-	err_detect="-xerror -err_detect explode"
-    else
-	err_detect="-err_detect ignore_err"
-    fi
+    output_filename = f"fixed-pass1_{filename}{ext}"
+    output_filepath = os.path.join(basepath,output_filename)
+    ffmpeg_output_filepath = f'file:{output_filepath}'
+    args = ['docker',
+            'run',
+            '--pull=always',
+            '--rm',
+            '-it',
+            '--device=/dev/dri',
+            f'--mount=type=bind,src={basepath},dst={basepath}',
+            'linuxserver/ffmpeg',
+            '-hide_banner',
+            '-loglevel','info',
+            '-i',ffmpeg_input_filepath,
+            '-c','copy',
+            '-copyts',
+            '-y',
+            ffmpeg_output_filepath]
+    print(args)    
+    rv = subprocess.run(args)
 
-    ffmpeg \
-	-hide_banner \
-	${err_detect} \
-	-fflags +igndts+genpts+discardcorrupt \
-	-avoid_negative_ts make_zero \
-	-i "file:${src}" \
-	-ignore_unknown \
-	-c:v copy \
-	-c:a copy \
-	-c:s copy \
-	-y \
-	"file:${tmpfile}"
-    if [ $? -eq 0 ]; then
-	mv -vf "${tmpfile}" "${dst}"
-	rm -vf "${dst}.failed"
-    else
-	rm -vf "${tmpfile}"
-	touch "${dst}.failed"
-	continue
-    fi
+    return output_filepath
 
-    has-silent-track "${dst}"
-    if [ $? -eq 0 ]; then
-	acodec=${acodec:-$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${dst}")}
-	ffmpeg \
-	    -hide_banner \
-	    -fflags +genpts \
-	    -i "file:${dst}" \
-	    -c:v copy \
-	    -c:a "${acodec}" \
-	    -q:a 0 \
-	    -ac 1 \
-	    -ar 48000 \
-	    -c:s copy \
-	    -threads 0 \
-	    "file:${tmpfile}"
-	mv -vf "${tmpfile}" "${dst}"
-	ffmpeg \
-	    -hide_banner \
-	    -fflags +genpts \
-	    -i "file:${dst}" \
-	    -c:v copy \
-	    -c:a "${acodec}" \
-	    -q:a 0 \
-	    -ac 2 \
-	    -ar 48000 \
-	    -c:s copy \
-	    -threads 0 \
-	    "file:${tmpfile}"
-	mv -vf "${tmpfile}" "${dst}"
-    fi
-done
+
+def fix_video_pass_2(filepath):
+    input_filepath = os.path.realpath(filepath)
+    basepath = os.path.dirname(input_filepath)
+    filename = os.path.basename(input_filepath)
+    filename,ext = os.path.splitext(filename)
+    filename = filename.removeprefix("fixed-pass1_")
+    ffmpeg_input_filepath = f'file:{input_filepath}'
+
+    output_filename = f"fixed-pass2_{filename}{ext}"
+    output_filepath = os.path.join(basepath,output_filename)
+    ffmpeg_output_filepath = f'file:{output_filepath}'
+    args = ['docker',
+            'run',
+            '--pull=always',
+            '--rm',
+            '-it',
+            '--device=/dev/dri',
+            f'--mount=type=bind,src={basepath},dst={basepath}',
+            'linuxserver/ffmpeg',
+            '-hide_banner',
+            '-loglevel','info',
+            '-fflags','+igndts+genpts+discardcorrupt',
+            '-i',ffmpeg_input_filepath,
+            '-c','copy',
+            '-y',
+            ffmpeg_output_filepath]
+    print(args)
+    rv = subprocess.run(args)
+
+    return output_filepath
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument("paths",nargs='+');
+    args = p.parse_args()
+
+    print(f"args: {args}")
+
+    for filepath in args.paths:
+        pass1 = fix_video_pass_1(filepath)
+        pass2 = fix_video_pass_2(pass1)
