@@ -152,7 +152,7 @@ def transcode(filepath,
     video_filters += ':x=(w-text_w)/2:y=(h-text_h)-8'
     video_filters += ':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 
-    args = ['podman',
+    args = ['docker',
             'run',
             '--pull=always',
             '--rm',
