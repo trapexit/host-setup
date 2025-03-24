@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cat ~/.ssh/*.pub | \
+    tailscale ssh "${1}" "cat >> ~/.ssh/authorized_keys"
