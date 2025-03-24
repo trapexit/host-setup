@@ -8,4 +8,6 @@ apt install -y \
     podman-compose \
     tmux \
     emacs-nox \
-    ffmpeg
+    ffmpeg \
+    htop \
+    btop
