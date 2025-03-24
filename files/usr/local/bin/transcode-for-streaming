@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+import os
+import random
+import argparse
+
+
+RES_X=1280
+RES_Y=720
+
+
+def get_video_width(filepath):
+    args = ['ffprobe',
+            '-v','error',
+            '-select_streams','v:0',
+            '-show_entries','stream=width',
+            '-of','default=noprint_wrappers=1:nokey=1',
+            filepath]
+    rv = subprocess.run(args,
+                        stdout=subprocess.PIPE)
+    return int(rv.stdout)
+
+def get_video_height(filepath):
+    args = ['ffprobe',
+            '-v','error',
+            '-select_streams','v:0',
+            '-show_entries','stream=height',
+            '-of','default=noprint_wrappers=1:nokey=1',
+            filepath]
+    rv = subprocess.run(args,
+                        stdout=subprocess.PIPE)
+    return int(rv.stdout)
+
+
+def dar_to_ffmpeg_scale(filepath):
+    args = ['ffprobe',
+            '-v','error',
+            '-select_streams','v:0',
+            '-show_entries','stream=display_aspect_ratio',
+            '-of','default=noprint_wrappers=1:nokey=1',
+            filepath]
+    rv = subprocess.run(args,
+                        stdout=subprocess.PIPE)
+    dar = rv.stdout.decode().strip()
+    if dar == "N/A":
+        width  = get_video_width(filepath)
+        height = get_video_height(filepath)
+        dar = f"{width}:{height}"
+
+    if dar in ["4:3","22:15","40:33","53:40","131:96","320:240",
+               "480:360","160:112","160:119","176:131","11:8","630:480",
+               "39:29",
+               "95:72","640:480","712:480","720:480","880:657","11:9"]:
+        aspect = "4:3"
+    elif dar in ["43:24","427:240","853:480","16:9","20:11","706:405"]:
+        aspect = "16:9"
+    elif dar in ["3:2"]:
+        aspect = "3:2"
+    else:
+        aspect = dar
+#        raise Exception(f"FIX DAR {dar}: {filepath}")
+
+    w = RES_X
+    h = RES_Y
+    aw = int(aspect.split(':')[0])
+    ah = int(aspect.split(':')[1])
+
+    w = min(w,int(((h * aw) / ah)))
+
+    flags="spline+accurate_rnd"
+    return f"scale={w}:{h}:flags={flags},"
+
+
+def determine_fps(ffmpeg_filepath):
+    args = ['ffprobe',
+            '-v','0',
+            '-select_streams','v:0',
+            '-show_entries','stream=r_frame_rate',
+            '-of','default=noprint_wrappers=1:nokey=1',
+            ffmpeg_filepath]
+    rv = subprocess.run(args,stdout=subprocess.PIPE)
+    n,d = rv.stdout.split(b'/')
+    n = float(n)
+    d = float(d)
+    if n / d > 24:
+        return "framerate=fps=30,"
+    return "fps=fps=30,framerate=fps=30,"
+
+
+VALID_EXTS = ['.mkv','.mp4','.avi','.flv','.wmv','.mpg','.mpeg','.asf','.webm']
+def valid_file(filepath):
+    if filepath.endswith(".stream.flv"):
+        return False
+    ext = os.path.splitext(filepath)[1]
+    return ext in VALID_EXTS
+
+
+def random_filename(filename=None):
+    val = random.randint(0,2**32-1)
+    if not filename:
+        filename = ""
+    while True:
+        rv = f'.{filename}_{val:08x}.tmp'
+        if len(rv) > 255:
+            filename = filename[:-1]
+            continue
+        return rv
+
+
+def transcode(filepath,
+              vencoder='qsv',
+              delete_target=True):
+    input_filepath = os.path.realpath(filepath)
+    basepath = os.path.dirname(input_filepath)
+    filename = os.path.basename(input_filepath)
+    title = os.path.splitext(filename)[0]
+    ffmpeg_input_filepath = f'file:{input_filepath}'
+    output_filename = os.path.splitext(filename)[0] + '.stream.flv'
+    output_filepath = os.path.join(basepath,output_filename)
+    tmp_output_filepath = os.path.join(basepath,random_filename(filename))
+    ffmpeg_output_filepath = f'file:{tmp_output_filepath}'
+
+    if delete_target:
+        try:
+            os.unlink(output_path)
+        except:
+            pass
+
+    video_bitrate = '4096K'
+    if vencoder == 'qsv':
+        video_codec = 'h264_qsv'
+    elif vencoder == 'cpu':
+        video_codec = 'libx264'
+    else:
+        raise Exception(f"invalid encoder: {vencoder}")
+    audio_bitrate = '128K'
+    audio_codec = 'aac'
+
+    textfile = "/tmp/" + random_filename()
+    with open(textfile,"wt+") as f:
+        f.write(title)
+    print(f"title: {title}")
+
+    video_filters  = 'yadif=deint=0,'
+    video_filters += determine_fps(ffmpeg_input_filepath)
+    video_filters += dar_to_ffmpeg_scale(ffmpeg_input_filepath)
+    video_filters += f'pad={RES_X}:{RES_Y}:(ow-iw)/2:(oh-ih)/2,'
+    video_filters += f'drawtext=textfile={textfile}'
+    video_filters += ':fontcolor=white:fontsize=16:box=1:boxcolor=black@0.75'
+    video_filters += ':x=(w-text_w)/2:y=(h-text_h)-8'
+    video_filters += ':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
+
+    args = ['docker',
+            'run',
+            '--pull=always',
+            '--rm',
+            '-it',
+            '--device=/dev/dri',
+            f'--mount=type=bind,src={basepath},dst={basepath}',
+            f'--mount=type=bind,src={textfile},dst={textfile}',
+            'linuxserver/ffmpeg',
+            '-hide_banner',
+            '-loglevel','info',
+            '-xerror',
+            '-err_detect','explode',
+            '-fflags','+genpts',
+            '-i',ffmpeg_input_filepath,
+            '-pix_fmt','yuv420p',
+            '-color_range','limited',
+            '-colorspace','bt709',
+            '-color_primaries','bt709',
+            '-color_trc','bt709',
+            '-filter:v',video_filters,
+            '-c:v:0',video_codec,
+            '-tune','zerolatency',
+            '-profile:v','high',
+            '-level:v','4.1',
+            '-bsf:v','h264_mp4toannexb',
+            '-video_track_timescale','90000',
+            '-x264-params','nal-hrd=cbr',
+            '-b:v',video_bitrate,
+            '-minrate:v',video_bitrate,
+            '-maxrate:v',video_bitrate,
+            '-bufsize:v',video_bitrate,
+            '-preset','medium',
+            '-r','30',
+            '-g','60',
+            '-c:a:0',audio_codec,
+            '-af','anlmdn,loudnorm',
+            '-b:a',audio_bitrate,
+            '-ac','2',
+            '-ar','48000',
+            '-dn',
+            '-sn',
+            '-metadata',f'vencoder={vencoder}',
+            '-metadata',f'vcodec={video_codec}',
+            '-metadata',f'original_filename={filename}',
+            '-metadata',f'title={title}',            
+            '-threads','0',
+            '-filter_threads','0',
+            '-y',
+            '-f','flv',
+            ffmpeg_output_filepath]
+    print(args,flush=True)
+    rv = subprocess.run(args)
+    if rv.returncode == 0:
+        print(f'{tmp_output_filepath} -> {output_filepath}',flush=True)
+        os.renames(tmp_output_filepath,output_filepath)
+    else:
+        os.unlink(tmp_output_filepath)
+    os.unlink(textfile)
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument("--qsv",
+                   action='store_true',
+                   help='')
+    p.add_argument("paths",nargs='+');
+    args = p.parse_args()
+
+    print(args)
+    vencoder = 'cpu'
+    if args.qsv:
+        vencoder = 'qsv'
+
+    for arg_filepath in args.paths:
+        if os.path.isdir(arg_filepath):
+            for (root,dirnames,filenames) in os.walk(arg_filepath):
+                for filename in filenames:
+                    fullpath = os.path.join(root,filename)
+                    if not valid_file(fullpath):
+                        continue
+                    transcode(fullpath,vencoder)
+        elif os.path.isfile(arg_filepath):
+            if not valid_file(arg_filepath):
+                continue
+            transcode(arg_filepath,vencoder)

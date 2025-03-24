@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+from datetime import datetime, timedelta
+import argparse
+import random
+
+def valid_video_file(filename):
+    _, ext = os.path.splitext(filename)
+
+    return ext in ['.mpg',
+                   '.mpeg',
+                   '.mp4',
+                   '.mkv',
+                   '.avi',
+                   '.wmv',
+                   '.asf']
+    
+def to_stream_filepath(fullpath):
+    filepath, ext = os.path.splitext(fullpath)
+    return filepath + '.stream.flv'
+
+def walk(basepath, burn_date):
+    filepaths = []
+    for (root,dirnames,filenames) in os.walk(basepath):
+        for filename in filenames:
+            try:
+                if filename.endswith(".stream.flv"):
+                    continue
+                if not valid_video_file(filename):
+                    continue
+                
+                fullpath = os.path.join(root,filename)
+                stream_fullpath = to_stream_filepath(fullpath)
+
+                try:
+                    mtime = os.path.getmtime(stream_fullpath)
+                except:
+                    mtime = 0.0
+                mtime = datetime.fromtimestamp(mtime)
+                if mtime > burn_date:
+                    continue
+
+                filepaths.append(fullpath)
+
+            except Exception as e:
+                print(e)
+
+    random.shuffle(filepaths)
+    for filepath in filepaths:
+        print(filepath)
+        args = ['/usr/local/bin/transcode-for-streaming', filepath]
+        env = {}
+        subprocess.run(args=args,env=env)
+                
+
+def main(basepath, burn_date):
+    walk(basepath, burn_date)
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('basepath',type=str,nargs='+')
+    args = p.parse_args()
+
+    for basepath in args.basepath:
+        burn_date = datetime.now() - timedelta(weeks=1)
+        main(basepath,burn_date)

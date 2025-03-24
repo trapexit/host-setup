@@ -1,0 +1,82 @@
+#!/bin/bash
+set -x
+
+for filepath in "$@"
+do
+    src="${filepath}"
+    src=$(realpath -- "${src}")
+    srcdir=$(dirname "${src}")
+    filename=$(basename -- "${src}")
+    ext="${filename##*.}"
+    dst="${srcdir}/fixed_${filename}"
+
+    if [[ "${src}" =~ \.stream\.flv$ ]]; then
+	echo "Skipping ${src}"
+	continue
+    fi
+
+    if [[ "${src}" =~ \.failed$ ]]; then
+	echo "Skipping ${src}"
+	continue
+    fi
+    
+    tmpfile="$(mktemp -u -p "${srcdir}").${ext}"
+
+    if [ -z "${ignore_error}" ]; then
+	err_detect="-xerror -err_detect explode"
+    else
+	err_detect="-err_detect ignore_err"
+    fi
+
+    ffmpeg \
+	-hide_banner \
+	${err_detect} \
+	-fflags +igndts+genpts+discardcorrupt \
+	-avoid_negative_ts make_zero \
+	-i "file:${src}" \
+	-ignore_unknown \
+	-c:v copy \
+	-c:a copy \
+	-c:s copy \
+	-y \
+	"file:${tmpfile}"
+    if [ $? -eq 0 ]; then
+	mv -vf "${tmpfile}" "${dst}"
+	rm -vf "${dst}.failed"
+    else
+	rm -vf "${tmpfile}"
+	touch "${dst}.failed"
+	continue
+    fi
+
+    has-silent-track "${dst}"
+    if [ $? -eq 0 ]; then
+	acodec=${acodec:-$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${dst}")}
+	ffmpeg \
+	    -hide_banner \
+	    -fflags +genpts \
+	    -i "file:${dst}" \
+	    -c:v copy \
+	    -c:a "${acodec}" \
+	    -q:a 0 \
+	    -ac 1 \
+	    -ar 48000 \
+	    -c:s copy \
+	    -threads 0 \
+	    "file:${tmpfile}"
+	mv -vf "${tmpfile}" "${dst}"
+	ffmpeg \
+	    -hide_banner \
+	    -fflags +genpts \
+	    -i "file:${dst}" \
+	    -c:v copy \
+	    -c:a "${acodec}" \
+	    -q:a 0 \
+	    -ac 2 \
+	    -ar 48000 \
+	    -c:s copy \
+	    -threads 0 \
+	    "file:${tmpfile}"
+	mv -vf "${tmpfile}" "${dst}"
+    fi
+done

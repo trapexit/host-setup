@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+BASEPATH=$(pwd)
+docker \
+    run \
+    --rm \
+    -it \
+    --device=/dev/dri \
+    --mount=type=bind,src="${BASEPATH}",dst="${BASEPATH}" \
+    --mount=type=bind,src="/tmp",dst="/tmp" \
+    linuxserver/ffmpeg \
+    "$@"
