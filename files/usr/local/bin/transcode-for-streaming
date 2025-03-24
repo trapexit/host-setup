@@ -152,7 +152,7 @@ def transcode(filepath,
     video_filters += ':x=(w-text_w)/2:y=(h-text_h)-8'
     video_filters += ':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 
-    args = ['docker',
+    args = ['podman',
             'run',
             '--pull=always',
             '--rm',
@@ -160,7 +160,7 @@ def transcode(filepath,
             '--device=/dev/dri',
             f'--mount=type=bind,src={basepath},dst={basepath}',
             f'--mount=type=bind,src={textfile},dst={textfile}',
-            'linuxserver/ffmpeg',
+            'docker.io/linuxserver/ffmpeg',
             '-hide_banner',
             '-loglevel','info',
             '-xerror',

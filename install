@@ -16,4 +16,9 @@ for (root,dirnames,filenames) in os.walk("files/"):
         except:
             pass
         print(f"* {src} -> {dst}")
-        shutil.copyfile(src,dst,follow_symlinks=False)
+        try:
+            os.unlink(dst)
+            shutil.copyfile(src,dst,follow_symlinks=False)
+        except:
+            print('FAILED')
+            pass

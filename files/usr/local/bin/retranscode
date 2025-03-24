@@ -51,8 +51,7 @@ def walk(basepath, burn_date):
     for filepath in filepaths:
         print(filepath)
         args = ['/usr/local/bin/transcode-for-streaming', filepath]
-        env = {}
-        subprocess.run(args=args,env=env)
+        subprocess.run(args=args)
                 
 
 def main(basepath, burn_date):

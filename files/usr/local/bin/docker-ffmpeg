@@ -3,10 +3,11 @@
 BASEPATH=$(pwd)
 docker \
     run \
+    --pull=always \
     --rm \
     -it \
     --device=/dev/dri \
     --mount=type=bind,src="${BASEPATH}",dst="${BASEPATH}" \
     --mount=type=bind,src="/tmp",dst="/tmp" \
-    linuxserver/ffmpeg \
+    "docker.io/linuxserver/ffmpeg" \
     "$@"
