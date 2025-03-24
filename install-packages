@@ -7,4 +7,5 @@ apt install -y \
     podman-docker \
     podman-compose \
     tmux \
-    emacs-nox
+    emacs-nox \
+    ffmpeg
