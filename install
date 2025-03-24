@@ -9,8 +9,11 @@ for (root,dirnames,filenames) in os.walk("files/"):
         fullpath = Path(os.path.join(root,filename))
         src = fullpath
         dst = '/' / fullpath.relative_to(fullpath.parts[0])
-        if src.stat().st_mtime <= dst.stat().st_mtime:
-            print(f"* {src}: not newer")
-            continue
+        try:
+            if src.stat().st_mtime <= dst.stat().st_mtime:
+                print(f"* {src}: not newer")
+                continue
+        except:
+            pass
         print(f"* {src} -> {dst}")
         shutil.copyfile(src,dst)
