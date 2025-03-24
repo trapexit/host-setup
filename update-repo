@@ -10,7 +10,6 @@ for (root,dirnames,filenames) in os.walk("files/"):
         src = '/' / fullpath.relative_to(fullpath.parts[0])
         dst = fullpath
         if src.stat().st_mtime <= dst.stat().st_mtime:
-            print(f"* {src}: not newer")
             continue
-        print(f"* {src} -> {dst}")
+        print(f"* updated: {dst}")
         shutil.copy2(src,dst,follow_symlinks=False)

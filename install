@@ -11,16 +11,15 @@ for (root,dirnames,filenames) in os.walk("files/"):
         dst = '/' / fullpath.relative_to(fullpath.parts[0])
         try:
             if src.stat().st_mtime <= dst.stat().st_mtime:
-                print(f"* {src}: not newer")
                 continue
         except:
             pass
-        print(f"* {src} -> {dst}")
         try:
             try:
                 os.unlink(dst)
             except:
                 pass
+            print(f"* installed: {dst}")
             shutil.copy2(src,dst,follow_symlinks=False)
         except:
             print('FAILED')
