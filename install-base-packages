@@ -10,5 +10,3 @@ apt install -y \
     btop \
     python3 \
     curl
-
-curl -fsSL https://tailscale.com/install.sh | sh

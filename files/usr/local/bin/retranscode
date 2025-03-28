@@ -64,5 +64,5 @@ if __name__ == '__main__':
     args = p.parse_args()
 
     for basepath in args.basepath:
-        burn_date = datetime.now() - timedelta(weeks=1)
+        burn_date = datetime.now() - timedelta(weeks=2)
         main(basepath,burn_date)
