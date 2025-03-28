@@ -3,11 +3,12 @@
 apt update -y
 apt install -y \
     sshfs \
-    podman \
-    podman-docker \
-    podman-compose \
     tmux \
     emacs-nox \
     ffmpeg \
     htop \
-    btop
+    btop \
+    python3 \
+    curl
+
+curl -fsSL https://tailscale.com/install.sh | sh
