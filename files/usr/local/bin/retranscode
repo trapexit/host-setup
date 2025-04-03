@@ -15,7 +15,8 @@ def valid_video_file(filename):
                    '.mkv',
                    '.avi',
                    '.wmv',
-                   '.asf']
+                   '.asf',
+                   '.webm']
     
 def to_stream_filepath(fullpath):
     filepath, ext = os.path.splitext(fullpath)
