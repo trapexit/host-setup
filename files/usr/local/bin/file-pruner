@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+import stat
+import psutil
+
+
+def build_file_list(basepath):
+    file_list = []
+    for root, dirs, filenames in os.walk(basepath):
+        for filename in filenames:
+            try:
+                filepath = os.path.join(root,filename)
+                st = os.lstat(filepath)
+                entry = (st.st_mtime,filepath)
+                file_list.append(entry)
+            except:
+                pass
+    file_list.sort(reverse=True)
+    return file_list
+
+
+def trim_path(basepath, target_percentage, verbose, execute):
+    current_percentage = psutil.disk_usage(basepath).percent
+    if verbose:
+        print(f'{basepath}: current% = {current_percentage}; target% = {target_percentage}')
+    if current_percentage < target_percentage:
+        return
+
+    file_list = build_file_list(basepath)
+    while ((current_percentage > target_percentage) and file_list):
+        filepath = file_list.pop()[1]
+        if verbose:
+            print(f'{filepath}',end='')
+        if execute:
+            try:
+                os.unlink(filepath)
+                if verbose:
+                    print(': removed',end='')
+            except PermissionError:
+                if verbose:
+                    print(f'{filepath} - {e}')
+            except Exception as e:
+                print(f'{filepath} - {e}')
+                
+            try:
+                dirname = os.path.dirname(filepath)
+                os.rmdir(dirname)
+            except PermissionError:
+                if verbose:
+                    print(f'{filepath} - {e}')
+            except Exception as e:
+                pass
+                
+        if verbose:
+            print()
+        current_percentage = psutil.disk_usage(basepath).percent
+        if verbose:
+            print(f'{basepath}: current% = {current_percentage}; target% = {target_percentage}')
+
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(prog='pruner')
+    argparser.add_argument('--path',
+                           required=True)
+    argparser.add_argument('--percentage',
+                           type=float,
+                           required=True)
+    argparser.add_argument('--verbose',
+                           action='store_true',
+                           required=False,
+                           default=False)
+    argparser.add_argument('--execute',
+                           action='store_true',
+                           required=False,
+                           default=False)
+
+    args = argparser.parse_args()
+
+    trim_path(args.path,
+              args.percentage,
+              args.verbose,
+              args.execute)
