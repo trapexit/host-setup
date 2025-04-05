@@ -28,7 +28,7 @@ def move_files_by_timestamp(src_dir, dest_dir):
                     timeout_in_seconds = (15 * 60)
                     now = time.time()
                     mtime = os.path.getmtime(src_file_path)
-                    if ((now - mtime) < timeout_in_seconds)
+                    if ((now - mtime) < timeout_in_seconds):
                         continue
                     dest_file_path = os.path.join(sub_dir, file)
                     os.makedirs(sub_dir, exist_ok=True)
