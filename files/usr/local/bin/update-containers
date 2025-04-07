@@ -13,13 +13,8 @@ fi
 docker \
     compose \
     pull \
-    --ignore-buildable \
     --ignore-pull-failures \
-    --include-deps
-docker \
-    compose \
-    pull \
-    --ignore-pull-failures
+    --include-deps    
 
 docker \
     compose \
