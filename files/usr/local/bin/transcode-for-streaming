@@ -110,8 +110,9 @@ def random_filename(filename=None):
 
 
 def transcode(filepath,
-              vencoder='qsv',
-              delete_target=True):
+              vencoder,
+              delete_target=True,
+              explode_on_error=True):
     input_filepath = os.path.realpath(filepath)
     basepath = os.path.dirname(input_filepath)
     filename = os.path.basename(input_filepath)
@@ -152,6 +153,11 @@ def transcode(filepath,
     video_filters += ':x=(w-text_w)/2:y=(h-text_h)-8'
     video_filters += ':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 
+    error_handling = []
+    if explode_on_error:
+        error_handling = ['-xerror',
+                          '-err_detect','explode']
+    
     args = ['docker',
             'run',
             '--pull=always',
@@ -162,10 +168,9 @@ def transcode(filepath,
             f'--mount=type=bind,src={textfile},dst={textfile}',
             'docker.io/linuxserver/ffmpeg',
             '-hide_banner',
-            '-loglevel','info',
-            '-xerror',
-            '-err_detect','explode',
-            '-fflags','+genpts',
+            '-loglevel','info'] + \
+            error_handling + \
+            ['-fflags','+genpts',
             '-i',ffmpeg_input_filepath,
             '-pix_fmt','yuv420p',
             '-color_range','limited',
@@ -218,6 +223,14 @@ if __name__ == '__main__':
     p.add_argument("--qsv",
                    action='store_true',
                    help='')
+
+    p.add_argument('--explode-on-error',
+                   dest='explode_on_error',                   
+                   action='store_true')
+    p.add_argument('--no-explode-on-error',
+                   dest='explode_on_error',
+                   action='store_false')
+
     p.add_argument("paths",nargs='+');
     args = p.parse_args()
 
@@ -226,6 +239,9 @@ if __name__ == '__main__':
     if args.qsv:
         vencoder = 'qsv'
 
+    delete_target = True
+    explode_on_error = args.explode_on_error
+        
     for arg_filepath in args.paths:
         if os.path.isdir(arg_filepath):
             for (root,dirnames,filenames) in os.walk(arg_filepath):
@@ -233,8 +249,8 @@ if __name__ == '__main__':
                     fullpath = os.path.join(root,filename)
                     if not valid_file(fullpath):
                         continue
-                    transcode(fullpath,vencoder)
+                    transcode(fullpath,vencoder,delete_target,explode_on_error)
         elif os.path.isfile(arg_filepath):
             if not valid_file(arg_filepath):
                 continue
-            transcode(arg_filepath,vencoder)
+            transcode(arg_filepath,vencoder,delete_target,explode_on_error)

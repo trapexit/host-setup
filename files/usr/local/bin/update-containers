@@ -16,6 +16,10 @@ docker \
     --ignore-buildable \
     --ignore-pull-failures \
     --include-deps
+docker \
+    compose \
+    pull \
+    --ignore-pull-failures
 
 docker \
     compose \
