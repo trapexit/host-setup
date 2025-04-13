@@ -49,6 +49,7 @@ def dar_to_ffmpeg_scale(filepath):
         height = get_video_height(filepath)
         dar = f"{width}:{height}"
 
+    print(f"DAR: {dar}",flush=True)
     if dar in ["4:3","22:15","40:33","53:40","131:96","320:240",
                "480:360","160:112","160:119","176:131","11:8","630:480",
                "39:29",
@@ -68,6 +69,8 @@ def dar_to_ffmpeg_scale(filepath):
     ah = int(aspect.split(':')[1])
 
     w = min(w,int(((h * aw) / ah)))
+
+    print(f"Scale: {w}x{h}",flush=True)    
 
     flags="spline+accurate_rnd"
     return f"scale={w}:{h}:flags={flags},"
