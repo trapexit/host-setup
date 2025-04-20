@@ -16,6 +16,8 @@ def valid_video_file(filename):
                    '.avi',
                    '.wmv',
                    '.asf',
+                   '.flv',
+                   '.m4v',
                    '.webm']
     
 def to_stream_filepath(fullpath):
