@@ -64,7 +64,10 @@ def trim_path(basepath, target_percentage, verbose, execute):
 
 
 def wait_on_lock_file(filepath):
-    fd = os.open(filepath,os.O_RDWR)
+    flags = os.O_RDWR | os.O_CREAT
+    mode  = 0o666
+
+    fd = os.open(filepath,flags,mode)
     try:
         fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except IOError:
