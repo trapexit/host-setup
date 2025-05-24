@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-import os
 import argparse
-import stat
+import fcntl
+import hashlib
+import os
 import psutil
+import stat
+import tempfile
 
 
 def build_file_list(basepath):
@@ -43,7 +46,7 @@ def trim_path(basepath, target_percentage, verbose, execute):
                     print(f'{filepath} - {e}')
             except Exception as e:
                 print(f'{filepath} - {e}')
-                
+
             try:
                 dirname = os.path.dirname(filepath)
                 os.rmdir(dirname)
@@ -52,12 +55,23 @@ def trim_path(basepath, target_percentage, verbose, execute):
                     print(f'{filepath} - {e}')
             except Exception as e:
                 pass
-                
+
         if verbose:
             print()
         current_percentage = psutil.disk_usage(basepath).percent
         if verbose:
             print(f'{basepath}: current% = {current_percentage}; target% = {target_percentage}')
+
+
+def wait_on_lock_file(filepath):
+    fd = os.open(filepath,os.O_RDWR)
+    try:
+        fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except IOError:
+        print(f'INFO: Another instance of file-pruner is running on this path. Waiting.',flush=True)
+        fcntl.flock(fd,fcntl.LOCK_EX)
+
+    return fd
 
 
 if __name__ == '__main__':
@@ -78,7 +92,15 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
 
+    lock_file_digest = hashlib.sha256(args.path.encode()).hexdigest()
+    lock_filename    = f'{lock_file_digest}.lock'
+    lock_filepath    = os.path.join(tempfile.gettempdir(),lock_filename)
+
+    fd = wait_on_lock_file(lock_filepath)
+
     trim_path(args.path,
               args.percentage,
               args.verbose,
               args.execute)
+
+    os.close(fd)
