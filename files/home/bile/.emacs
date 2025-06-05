@@ -5,7 +5,6 @@
 (require 'package)
 (setq package-enable-at-startup nil)
 (add-to-list 'package-archives
-	     '("melpa" . "https://melpa.org/packages/")
 	     '("melpa-stable" . "https://stable.melpa.org/packages/"))
 (package-initialize)
 
@@ -67,10 +66,14 @@
 (use-package lsp-treemacs
   :ensure t)
 
-(use-package company
-  :config
-  (global-company-mode 1))
+;(use-package company
+;  :config
+;  (global-company-mode 1))
 ;  (global-set-key (kbd "<tab>") 'company-complete))
+
+(with-eval-after-load 'company
+  (define-key company-active-map (kbd "TAB") 'company-complete)
+  (define-key company-active-map (kbd "<tab>") 'company-complete))
 
 (setq package-selected-packages '(lsp-mode lsp-treemacs helm-lsp
     projectile hydra flycheck company avy which-key helm-xref dap-mode))
@@ -87,8 +90,8 @@
 ;; (define-key global-map [remap switch-to-buffer] #'helm-mini)
 
 (which-key-mode)
-(add-hook 'c-mode-hook 'lsp)
-(add-hook 'c++-mode-hook 'lsp)
+;;(add-hook 'c-mode-hook 'lsp)
+;;(add-hook 'c++-mode-hook 'lsp)
 
 (setq gc-cons-threshold (* 100 1024 1024)
       read-process-output-max (* 1024 1024)
@@ -215,7 +218,7 @@
 (global-set-key (kbd "C-c g") 'goto-line)
 (global-set-key (kbd "C-c s") 'sort-lines)
 
-(setq compilation-scroll-output 'first-error)
+(setq compilation-scroll-output 'follow-output)
 
 (defun flyspell-on-for-buffer-type ()
   "Enable Flyspell appropriately for the major mode of the current buffer.  Uses `flyspell-prog-mode' for modes derived from `prog-mode', so only strings and comments get checked.  All other buffers get `flyspell-mode' to check all text.  If flyspell is already enabled, does nothing."
@@ -262,6 +265,13 @@
     )
   )
 
+(add-hook 'c-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)))
+(add-hook 'c++-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)))
+
 (add-hook 'c-mode-hook 'turn-on-auto-fill)
 (add-hook 'c-mode-common-hook
           (lambda() (local-set-key (kbd "C-c C-o") 'ff-find-other-file)))
@@ -284,8 +294,8 @@
 ;(setq exec-path (cons "/usr/lib/erlang/bin" exec-path))
 ;(require 'erlang-start)
 
-;(use-package smart-tab)
-;(global-smart-tab-mode 1)
+(use-package smart-tab)
+(global-smart-tab-mode 1)
 
 ;(require '6502-mode)
 
@@ -300,7 +310,8 @@
 (defun git-commit ()
   ""
   (when (or (eq major-mode 'c-mode)
-            (eq major-mode 'c++-mode))
+            (eq major-mode 'c++-mode)
+            (eq major-mode 'markdown-mode))
     (async-shell-command (format "git commit -a -m '%s'" (file-name-nondirectory buffer-file-name)))))
 (add-to-list 'display-buffer-alist '("*Async Shell Commands*" display-buffer-no-window (nil)))
 (add-hook 'after-save-hook 'git-commit)

@@ -6,10 +6,13 @@ import shutil
 
 for (root,dirnames,filenames) in os.walk("files/"):
     for filename in filenames:
-        fullpath = Path(os.path.join(root,filename))
-        src = '/' / fullpath.relative_to(fullpath.parts[0])
-        dst = fullpath
-        if src.stat().st_mtime <= dst.stat().st_mtime:
-            continue
-        print(f"* updated: {dst}")
-        shutil.copy2(src,dst,follow_symlinks=False)
+        try:
+            fullpath = Path(os.path.join(root,filename))
+            src = '/' / fullpath.relative_to(fullpath.parts[0])
+            dst = fullpath
+            if src.stat().st_mtime <= dst.stat().st_mtime:
+                continue
+            print(f"* updated: {dst}")
+            shutil.copy2(src,dst,follow_symlinks=False)
+        except Exception as e:
+            print(f"* exception: {e}")
