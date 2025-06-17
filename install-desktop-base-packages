@@ -1,0 +1,15 @@
+#!/bin/sh
+
+apt update -y
+apt install -y \
+    sshfs \
+    tmux \
+    emacs-gtk \
+    ffmpeg \
+    htop \
+    btop \
+    python3 \
+    curl \
+    build-essential \
+    clangd \
+    v4l-utils
