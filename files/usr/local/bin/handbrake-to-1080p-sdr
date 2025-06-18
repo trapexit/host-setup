@@ -1,5 +1,8 @@
 #!/bin/sh
 
+INPUT="$1"
+OUTPUT="$2"
+
 HandBrakeCLI \
     -i "${INPUT}" \
     -o "${OUTPUT}" \
