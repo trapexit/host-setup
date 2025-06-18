@@ -14,5 +14,5 @@ HandBrakeCLI \
     --optimize \
     --format mkv \
     --colorspace "primaries=bt709:transfer=bt709:matrix=bt709:tonemap=reinhard:desat=2" \
-    --subtitle-lang-list en \
+    --aencoder copy \
     --all-subtitles
