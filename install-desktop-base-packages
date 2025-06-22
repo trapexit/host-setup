@@ -12,4 +12,9 @@ apt install -y \
     curl \
     build-essential \
     clangd \
-    v4l-utils
+    v4l-utils \
+    vlc
+
+flatpak install \
+        app.zen_browser.zen \
+        net.werwolv.ImHex
