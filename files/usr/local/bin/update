@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -13,6 +13,6 @@ elif command_exists apt-get; then
     sudo apt-get autoremove -y
     sudo apt-get autoclean -y    
 elif command_exists apk; then
-    sudo apk update -y
-    sudo apk upgrade -y
+    sudo apk update
+    sudo apk upgrade
 fi
