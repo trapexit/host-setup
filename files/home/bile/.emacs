@@ -3,34 +3,47 @@
 ;; just comment it out by adding a semicolon to the start of the line.
 ;; You may delete these explanatory comments.
 (require 'package)
-(setq package-enable-at-startup nil)
-(add-to-list 'package-archives
-	     '("melpa-stable" . "https://stable.melpa.org/packages/"))
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (package-initialize)
+
+(use-package vterm
+    :ensure t)
 
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
   (package-install 'use-package))
 
-(use-package lsp-mode
-  :ensure t
-  :commands (lsp lsp-deferred)
-  :init
-  (setq lsp-keymap-prefix "C-o")
-  :config
-  (lsp-enable-which-key-integration t)
-  (setq lsp-clients-clangd-args
-        '("-j=4"
-          "--malloc-trim"
-          "--background-index"
-          "--log=error"
-          "--header-insertion=never"))
-  (setq lsp-enable-on-type-formatting nil)
-  (setq lsp-enable-indentation nil))
+(add-to-list 'auto-mode-alist '("\\.icpp\\'" . c++-mode))
 
-(use-package lsp-ui
-  :commands lsp-ui-mode
-  :ensure t)
+(use-package projectile
+  :ensure t
+  :pin melpa-stable
+  :init
+  (projectile-mode +1)
+  :bind (:map projectile-mode-map
+              ("s-p" . projectile-command-map)
+              ("C-c p" . projectile-command-map)))
+
+;; (use-package lsp-mode
+;;   :ensure t
+;;   :commands (lsp lsp-deferred)
+;;   :init
+;;   (setq lsp-keymap-prefix "C-o")
+;;   :config
+;;   (lsp-enable-which-key-integration t)
+;;   (setq lsp-clients-clangd-args
+;;         '("-j=4"
+;;           "--malloc-trim"
+;;           "--background-index"
+;;           "--log=error"
+;;           "--header-insertion=never"))
+;;   (setq lsp-enable-on-type-formatting nil)
+;;   (setq lsp-enable-indentation nil))
+
+;; (use-package lsp-ui
+;;   :commands lsp-ui-mode
+;;   :ensure t)
 
 (use-package ccls
   :ensure t
@@ -167,7 +180,9 @@
  '(ispell-dictionary nil)
  '(lsp-enable-indentation nil)
  '(package-selected-packages
-   '(company-c-headers yasnippet ## gnu-elpa-keyring-update dap-mode lsp-ivy helm-lsp ccls company-box which-key use-package helm flycheck ggtags lua-mode neotree corfu vterm cpp-auto-include highlight-indent-guides lsp-ui magit company dumb-jump))
+   '(## ccls company-c-headers dap-mode dumb-jump eat flycheck helm-lsp
+        helm-xref lsp-ui magit projectile-git-autofetch smart-tab
+        vterm which-key yasnippet))
  '(save-place-mode 1 nil (saveplace))
  '(show-paren-mode t)
  '(size-indication-mode t)
@@ -217,6 +232,8 @@
 (global-set-key (kbd "C-c d") 'delete-trailing-whitespace)
 (global-set-key (kbd "C-c g") 'goto-line)
 (global-set-key (kbd "C-c s") 'sort-lines)
+(global-set-key (kbd "C-<") 'beginning-of-buffer)
+(global-set-key (kbd "C->") 'end-of-buffer)
 
 (setq compilation-scroll-output 'follow-output)
 
