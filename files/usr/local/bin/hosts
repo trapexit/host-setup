@@ -1,0 +1,5 @@
+#!/bin/sh
+
+tailscale status | \
+    grep linux | \
+    awk '{ print $2 }'

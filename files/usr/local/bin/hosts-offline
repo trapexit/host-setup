@@ -1,0 +1,6 @@
+#!/bin/sh
+
+tailscale status | \
+    grep linux | \
+    grep offline | \
+    awk '{ print $2 }'
