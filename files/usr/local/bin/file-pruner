@@ -6,6 +6,7 @@ import hashlib
 import os
 import psutil
 import stat
+import sys
 import tempfile
 
 
@@ -71,8 +72,8 @@ def wait_on_lock_file(filepath):
     try:
         fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except IOError:
-        print(f'INFO: Another instance of file-pruner is running on this path. Waiting.',flush=True)
-        fcntl.flock(fd,fcntl.LOCK_EX)
+        print(f'INFO: Another instance of file-pruner is running on this path. Exiting.',flush=True)
+        sys.exit(0)
 
     return fd
 
