@@ -12,8 +12,10 @@ CAMERAS = \
         "driveway": "zmq:tcp://george:3002",
         "garage": "zmq:tcp://george:3003",
         "outside": "zmq:tcp://george:3004",
-        "inside": "zmq:tcp://george:3005",
+        "frontdoor": "zmq:tcp://george:3005",
         "tapo": "zmq:tcp://george:3006",
+        "amcrest": "zmq:tcp://george:3007",
+        "backdoor": "zmq:tcp://george:3008",
     }
 
 
@@ -23,7 +25,7 @@ if __name__ == "__main__":
         for camera in CAMERAS:
             print(f"* {camera}")
         sys.exit(0)
-        
+
     camera_name = sys.argv[1]
 
     args = \
@@ -33,6 +35,8 @@ if __name__ == "__main__":
             '-x','640',
             '-hide_banner',
             '-sync','audio',
+            '-fflags','nobuffer',
+            '-flags','low_delay',
             CAMERAS[camera_name]
         ]
 
