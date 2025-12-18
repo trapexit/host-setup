@@ -180,9 +180,9 @@
  '(ispell-dictionary nil)
  '(lsp-enable-indentation nil)
  '(package-selected-packages
-   '(## ccls company-c-headers dap-mode dumb-jump eat flycheck helm-lsp
-        helm-xref lsp-ui magit projectile-git-autofetch smart-tab
-        vterm which-key yasnippet))
+   '(## ccls company-c-headers dap-mode dockerfile-mode dumb-jump eat
+        flycheck helm-lsp helm-xref iedit lsp-ui magit
+        projectile-git-autofetch smart-tab vterm which-key yasnippet))
  '(save-place-mode 1 nil (saveplace))
  '(show-paren-mode t)
  '(size-indication-mode t)
@@ -225,15 +225,24 @@
 ;(global-set-key "\C-x\C-m" 'execute-extended-command)
 ;(global-set-key "\M-m" 'mark-defun)
 ;(global-set-key (kbd "C-c C-f") 'flyspell-toggle)
-(global-set-key (kbd "C-'") 'other-window)
+
+(windmove-default-keybindings '(shift))
+(require 'iedit)
+(global-set-key (kbd "C-c C-;") 'iedit-mode)
+(global-set-key (kbd "C-c ;") 'iedit-mode-toggle-on-function)
+
+(global-set-key (kbd "C-c f") 'find-file-at-point)
+
+(global-set-key (kbd "C-x C-k") 'kill-current-buffer)
+
+(global-set-key (kbd "C-<") 'beginning-of-buffer)
+(global-set-key (kbd "C->") 'end-of-buffer)
 (global-set-key (kbd "C-c a") 'align)
-(global-set-key (kbd "C-x C-b") 'ibuffer)
-(global-set-key (kbd "C-c c") 'compile)
 (global-set-key (kbd "C-c d") 'delete-trailing-whitespace)
 (global-set-key (kbd "C-c g") 'goto-line)
 (global-set-key (kbd "C-c s") 'sort-lines)
-(global-set-key (kbd "C-<") 'beginning-of-buffer)
-(global-set-key (kbd "C->") 'end-of-buffer)
+(global-set-key (kbd "C-c c") 'compile)
+(global-set-key (kbd "C-x C-b") 'ibuffer)
 
 (setq compilation-scroll-output 'follow-output)
 
