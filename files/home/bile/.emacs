@@ -7,8 +7,8 @@
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (package-initialize)
 
-(use-package vterm
-    :ensure t)
+;;(use-package vterm
+;;    :ensure t)
 
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
@@ -159,6 +159,8 @@
 (setq require-final-newline 'query)
 
 (xterm-mouse-mode t)
+(mouse-wheel-mode t)
+(setq mouse-wheel-scroll-amount '(3 ((shift) . 1) ((control) . nil)))
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -182,7 +184,7 @@
  '(package-selected-packages
    '(## ccls company-c-headers dap-mode dockerfile-mode dumb-jump eat
         flycheck helm-lsp helm-xref iedit lsp-ui magit
-        projectile-git-autofetch smart-tab vterm which-key yasnippet))
+        projectile-git-autofetch smart-tab which-key yasnippet))
  '(save-place-mode 1 nil (saveplace))
  '(show-paren-mode t)
  '(size-indication-mode t)
@@ -207,19 +209,7 @@
  '(font-lock-variable-name-face ((((class color) (background dark)) (:foreground "white" :weight bold))))
  '(show-paren-match ((((class color)) (:background "red")))))
 
-(defun up-slightly () (interactive) (scroll-up 5))
-(defun down-slightly () (interactive) (scroll-down 5))
-(defun up-one () (interactive) (scroll-up 1))
-(defun down-one () (interactive) (scroll-down 1))
-(defun up-a-lot () (interactive) (scroll-up))
-(defun down-a-lot () (interactive) (scroll-down))
 
-(global-set-key [mouse-4] 'down-slightly)
-(global-set-key [mouse-5] 'up-slightly)
-(global-set-key [S-mouse-4] 'down-one)
-(global-set-key [S-mouse-5] 'up-one)
-(global-set-key [C-mouse-4] 'down-a-lot)
-(global-set-key [C-mouse-5] 'up-a-lot)
 
 ;(global-set-key "\C-j" 'next-multiframe-window)
 ;(global-set-key "\C-x\C-m" 'execute-extended-command)
