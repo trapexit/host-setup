@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+
+inputpath=$(realpath "${1}")
+basepath=$(dirname "${inputpath}")
+log="$(mktemp)"
+
+trap "rm -f '${log}'" EXIT
+
+mounts="--mount=type=bind,src=/tmp,dst=/tmp"
+if [ "${basepath}" != "/tmp" ]; then
+    mounts="${mounts} --mount=type=bind,src=${basepath},dst=${basepath}"
+fi
+
+docker \
+    run \
+    --rm \
+    ${mounts} \
+    linuxserver/ffmpeg \
+    -nostdin \
+    -filter:v idet \
+    -frames:v 3000 \
+    -an \
+    -f rawvideo \
+    -y /dev/null \
+    -i "file:${inputpath}" > "${log}" 2>&1
+
+cat ${log}
+grep -qP "Multi frame detection:.+(T|B)FF:\s+[1-9]" "${log}"
