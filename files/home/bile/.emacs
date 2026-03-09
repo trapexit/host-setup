@@ -2,6 +2,10 @@
 ;; installed packages.  Don't delete this line.  If you don't want it,
 ;; just comment it out by adding a semicolon to the start of the line.
 ;; You may delete these explanatory comments.
+
+;; Start Emacs server if not already running
+(require 'server)                                                                             (unless (server-running-p)                                                                 (server-start))
+
 (require 'package)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
@@ -113,11 +117,13 @@
       company-minimum-prefix-length 1
       lsp-idle-delay 0.1)  ;; clangd is fast
 
+
+
 (with-eval-after-load 'lsp-mode
   (require 'dap-cpptools)
   (yas-global-mode))
 
-
+;;(setq frame-resize-pixelwise t)
 
 (add-hook 'xref-backend-functions #'dumb-jump-xref-activate)
 
@@ -201,15 +207,13 @@
  '(font-lock-builtin-face ((((class color) (background dark)) (:foreground "magenta"))))
  '(font-lock-comment-face ((((class color) (background dark)) (:foreground "cyan" :weight bold))))
  '(font-lock-constant-face ((((class color) (background dark)) (:foreground "yellow" :weight bold))))
- '(font-lock-doc-face ((t (:foreground "green" :weight bold))))
+ '(font-lock-doc-face ((t (:foreground "#00ff00" :weight bold))))
  '(font-lock-function-name-face ((((class color) (background dark)) (:foreground "lightblue" :weight bold))))
  '(font-lock-keyword-face ((((class color) (background dark)) (:foreground "red" :weight bold))))
- '(font-lock-string-face ((((class color) (background dark)) (:foreground "green" :weight bold))))
+ '(font-lock-string-face ((((class color) (background dark)) (:foreground "#00ff00" :weight bold))))
  '(font-lock-type-face ((((class color) (background dark)) (:foreground "red" :weight bold))))
  '(font-lock-variable-name-face ((((class color) (background dark)) (:foreground "white" :weight bold))))
  '(show-paren-match ((((class color)) (:background "red")))))
-
-
 
 ;(global-set-key "\C-j" 'next-multiframe-window)
 ;(global-set-key "\C-x\C-m" 'execute-extended-command)
@@ -218,6 +222,8 @@
 
 (windmove-default-keybindings '(shift))
 (require 'iedit)
+(global-set-key (kbd "C-c j") 'just-one-space)
+(global-set-key (kbd "C-c C-j") 'just-one-space)
 (global-set-key (kbd "C-c C-;") 'iedit-mode)
 (global-set-key (kbd "C-c ;") 'iedit-mode-toggle-on-function)
 

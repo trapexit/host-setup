@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# compress_pdf.sh – compress a PDF using qpdf, Ghostscript, and both in each order,
+# keeping the smallest output and replacing the original file.
+#
+# Usage:   ./compress_pdf.sh input.pdf
+# Requires: qpdf, ghostscript (gs) to be installed and in $PATH.
+
+set -euo pipefail
+
+# ---------- Helper ----------
+msg() { printf '[%s] %s\n' "$(date +%T)" "$*" >&2; }
+
+# ---------- Input ----------
+if [[ $# -ne 1 ]]; then
+    msg "Usage: $0 <pdf-file>"
+    exit 1
+fi
+
+orig="${1}"
+if [[ ! -f "$orig" ]]; then
+    msg "File not found: $orig"
+    exit 1
+fi
+
+# Work in a safe temporary directory
+tmpdir=$(mktemp -d)
+msg "Created temporary directory $tmpdir"
+cleanup() { rm -rf "$tmpdir"; }
+trap cleanup EXIT
+
+# ---------- Generate candidates ----------
+# 1. qpdf only
+qpdf_out="${tmpdir}/qpdf.pdf"
+msg "Generating qpdf-only compressed PDF to $qpdf_out"
+qpdf --compress-streams=y --object-streams=generate "$orig" "$qpdf_out"
+
+# 2. Ghostscript only
+gs_out="${tmpdir}/gs.pdf"
+msg "Generating ghostscript-only compressed PDF to $gs_out"
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
+   -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$gs_out" "$orig"
+
+# 3. qpdf → gs
+qpdf_gs_out="${tmpdir}/qpdf_gs.pdf"
+qpdf --compress-streams=y --object-streams=generate "$orig" "$tmpdir/qtemp.pdf"
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
+   -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$qpdf_gs_out" "$tmpdir/qtemp.pdf"
+
+# 4. gs → qpdf
+gs_qpdf_out="${tmpdir}/gs_qpdf.pdf"
+msg "Generating gs->qpdf compressed PDF to $gs_qpdf_out"
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
+   -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$tmpdir/gtemp.pdf" "$orig"
+qpdf --compress-streams=y --object-streams=generate "$tmpdir/gtemp.pdf" "$gs_qpdf_out"
+
+# ---------- Choose the smallest ----------
+best="$orig"
+bestsize=$(stat -c%s "$orig")
+
+for cand in "$qpdf_out" "$gs_out" "$qpdf_gs_out" "$gs_qpdf_out"; do
+    size=$(stat -c%s "$cand")
+    if (( size < bestsize )); then
+        bestsize=$size
+        best="$cand"
+    fi
+done
+
+# ---------- Replace original ----------
+if [[ "$best" != "$orig" ]]; then
+    msg "Replacing original with smallest file (${bestsize} bytes)."
+    mv "$best" "$orig"
+else
+    msg "Original file is already the smallest."
+fi
+
+msg "Done."
