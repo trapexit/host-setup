@@ -1,18 +1,186 @@
 #!/usr/bin/env python3
 
 import os
+import sys
+import subprocess
 from pathlib import Path
 import shutil
+import argparse
 
-for (root,dirnames,filenames) in os.walk("files/"):
-    for filename in filenames:
+# Parse arguments
+parser = argparse.ArgumentParser(description='Update repo from system files')
+parser.add_argument('-n', '--dry-run', action='store_true', help='Preview changes without applying them')
+parser.add_argument('-v', '--verbose', action='store_true', help='Show skipped files')
+args = parser.parse_args()
+
+dry_run = args.dry_run
+verbose = args.verbose
+
+def log_action(action, src=None, dst=None, dry_run_flag=None):
+    """Log an action with optional dry-run prefix."""
+    prefix = ""
+    if dry_run_flag is True or (dry_run_flag is None and dry_run):
+        prefix = "[DRY RUN] "
+
+    if src and dst:
+        print(f"* {prefix}{action}: {src} → {dst}")
+    elif dst:
+        print(f"* {prefix}{action}: {dst}")
+    else:
+        print(f"* {prefix}{action}")
+
+def needs_root(paths):
+    """Check if any path requires root privileges to read."""
+    for path in paths:
+        p = Path(path)
         try:
-            fullpath = Path(os.path.join(root,filename))
-            src = '/' / fullpath.relative_to(fullpath.parts[0])
-            dst = fullpath
-            if src.stat().st_mtime <= dst.stat().st_mtime:
-                continue
-            print(f"* updated: {dst}")
-            shutil.copy2(src,dst,follow_symlinks=False)
-        except Exception as e:
-            print(f"* exception: {e}")
+            if p.exists():
+                # Try to read the file
+                with open(p, 'rb') as f:
+                    f.read(1)
+            else:
+                # Check parent
+                parent = p.parent
+                if parent.exists():
+                    os.listdir(parent)
+        except (PermissionError, OSError):
+            return True
+    return False
+
+def run_with_sudo():
+    """Re-run this script with sudo."""
+    print("Root privileges required. Elevating with sudo...")
+    cmd = ['sudo', sys.executable] + sys.argv
+    os.execvp('sudo', cmd)
+
+def copy_file(src, dst, dry_run_mode=False):
+    """Copy a file from src to dst."""
+    if dry_run_mode:
+        return True
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists():
+            os.unlink(dst)
+        shutil.copy2(src, dst, follow_symlinks=False)
+        return True
+    except Exception as e:
+        print(f"FAILED: {e}")
+        return False
+
+def should_update(src, dst):
+    """Check if src is newer than dst."""
+    try:
+        return src.stat().st_mtime > dst.stat().st_mtime
+    except:
+        return True  # dst doesn't exist, so update needed
+
+def get_file_mtime_safely(path):
+    """Get file modification time, handling permission errors."""
+    try:
+        return path.stat().st_mtime
+    except (PermissionError, OSError):
+        return 0
+
+def process_home_file(repo_dst, home_src, root_src):
+    """Process a home file, syncing from system to repo."""
+    actions = []
+
+    # Check what exists
+    home_exists = home_src.exists()
+    try:
+        root_exists = root_src.exists()
+    except PermissionError:
+        root_exists = False
+
+    home_mtime = get_file_mtime_safely(home_src)
+    root_mtime = get_file_mtime_safely(root_src)
+
+    # Determine which source to use
+    if home_exists and root_exists:
+        # Both exist - use the newer one
+        if home_mtime >= root_mtime:
+            if should_update(home_src, repo_dst):
+                actions.append(('copy', home_src, repo_dst))
+        else:
+            if should_update(root_src, repo_dst):
+                actions.append(('copy', root_src, repo_dst))
+    elif home_exists and not root_exists:
+        if should_update(home_src, repo_dst):
+            actions.append(('copy', home_src, repo_dst))
+    elif root_exists and not home_exists:
+        if should_update(root_src, repo_dst):
+            actions.append(('copy', root_src, repo_dst))
+    elif verbose:
+        log_action("Skipped (no source)", None, repo_dst)
+
+    return actions
+
+def main():
+    all_actions = []
+
+    # First pass: collect all actions
+    for (root, dirnames, filenames) in os.walk("files/"):
+        # Skip the root directory - it's managed by home/bile sync
+        if root.startswith("files/root"):
+            continue
+
+        for filename in filenames:
+            fullpath = Path(os.path.join(root, filename))
+            repo_dst = fullpath
+            rel_path = fullpath.relative_to(fullpath.parts[0])
+
+            if str(rel_path).startswith('home/bile/'):
+                # Home file - check both home and root
+                home_src = Path('/') / rel_path
+                root_rel = Path('root') / rel_path.relative_to('home/bile')
+                root_src = Path('/') / root_rel
+
+                actions = process_home_file(repo_dst, home_src, root_src)
+                all_actions.extend(actions)
+            else:
+                # System file - just check system location
+                system_src = Path('/') / rel_path
+                if should_update(system_src, repo_dst):
+                    all_actions.append(('copy', system_src, repo_dst))
+                elif verbose:
+                    log_action("Skipped (up-to-date)", system_src, repo_dst)
+
+    # Check if we need root
+    copy_sources = [a[1] for a in all_actions if a[0] == 'copy']
+    if needs_root(copy_sources) and os.geteuid() != 0 and not dry_run:
+        print("Root privileges required for some operations.")
+        if input("Elevate with sudo? [Y/n]: ").lower() in ('', 'y', 'yes'):
+            run_with_sudo()
+            return
+        else:
+            print("Aborting. Use --dry-run to preview changes.")
+            sys.exit(1)
+
+    # Execute actions
+    files_updated = 0
+    errors = 0
+
+    for action in all_actions:
+        action_type = action[0]
+
+        if action_type == 'copy':
+            src, dst = action[1], action[2]
+            log_action("Updating", src, dst, dry_run)
+            files_updated += 1
+            if not dry_run:
+                if not copy_file(src, dst, dry_run):
+                    errors += 1
+
+    # Summary
+    if dry_run:
+        print(f"\n[DRY RUN SUMMARY] Would update {files_updated} files")
+        if errors > 0:
+            print(f"[DRY RUN] {errors} operations would fail")
+    else:
+        print(f"\nUpdated {files_updated} files")
+        if errors > 0:
+            print(f"{errors} errors occurred")
+            sys.exit(1)
+
+if __name__ == '__main__':
+    main()

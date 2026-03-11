@@ -1,26 +1,237 @@
 #!/usr/bin/env python3
 
 import os
+import sys
+import subprocess
 from pathlib import Path
 import shutil
+import argparse
 
-for (root,dirnames,filenames) in os.walk("files/"):
-    for filename in filenames:
-        fullpath = Path(os.path.join(root,filename))
-        src = fullpath
-        dst = '/' / fullpath.relative_to(fullpath.parts[0])
+# Parse arguments
+parser = argparse.ArgumentParser(description='Install dotfiles to system')
+parser.add_argument('-n', '--dry-run', action='store_true', help='Preview changes without applying them')
+parser.add_argument('-v', '--verbose', action='store_true', help='Show skipped files')
+args = parser.parse_args()
+
+dry_run = args.dry_run
+verbose = args.verbose
+
+def log_action(action, src=None, dst=None, dry_run_flag=None):
+    """Log an action with optional dry-run prefix."""
+    prefix = ""
+    if dry_run_flag is True or (dry_run_flag is None and dry_run):
+        prefix = "[DRY RUN] "
+
+    if src and dst:
+        print(f"* {prefix}{action}: {src} → {dst}")
+    elif dst:
+        print(f"* {prefix}{action}: {dst}")
+    else:
+        print(f"* {prefix}{action}")
+
+def needs_root(paths):
+    """Check if any path requires root privileges to write."""
+    for path in paths:
+        p = Path(path)
         try:
-            if src.stat().st_mtime <= dst.stat().st_mtime:
-                continue
+            # Check if parent directory is writable
+            parent = p.parent
+            if parent.exists():
+                parent_stat = os.stat(parent)
+                # Try to write a test file
+                test_file = parent / ".install_test_write"
+                try:
+                    test_file.touch()
+                    test_file.unlink()
+                except (PermissionError, OSError):
+                    return True
+        except (PermissionError, OSError):
+            return True
+    return False
+
+def run_with_sudo():
+    """Re-run this script with sudo."""
+    print("Root privileges required. Elevating with sudo...")
+    cmd = ['sudo', sys.executable] + sys.argv
+    os.execvp('sudo', cmd)
+
+def copy_file(src, dst, dry_run_mode=False):
+    """Copy a file from src to dst."""
+    if dry_run_mode:
+        return True
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists():
+            os.unlink(dst)
+        shutil.copy2(src, dst, follow_symlinks=False)
+        return True
+    except Exception as e:
+        print(f"FAILED: {e}")
+        return False
+
+def chown_file(path, user, group, dry_run_mode=False):
+    """Change ownership of a file."""
+    if dry_run_mode:
+        return True
+    try:
+        import pwd
+        import grp
+        uid = pwd.getpwnam(user).pw_uid
+        gid = grp.getgrnam(group).gr_gid
+        os.chown(path, uid, gid)
+        return True
+    except Exception as e:
+        # Try with sudo as fallback
+        try:
+            subprocess.run(['sudo', 'chown', f'{user}:{group}', str(path)], check=True, capture_output=True)
+            return True
+        except Exception:
+            print(f"CHOWN FAILED: {path} → {user}:{group}")
+            return False
+
+def get_file_owner(path):
+    """Get the owner of a file."""
+    try:
+        import pwd
+        stat_info = os.stat(path)
+        return pwd.getpwuid(stat_info.st_uid).pw_name
+    except:
+        return None
+
+def should_update(src, dst):
+    """Check if src is newer than dst."""
+    try:
+        return src.stat().st_mtime > dst.stat().st_mtime
+    except:
+        return True  # dst doesn't exist, so update needed
+
+def process_home_file(src_path, home_dst, root_dst):
+    """Process a home file, syncing between home and root."""
+    actions = []
+
+    # Check modtimes (with permission handling)
+    home_exists = home_dst.exists()
+    try:
+        root_exists = root_dst.exists()
+    except PermissionError:
+        root_exists = False
+
+    # Determine source of truth (non-root wins)
+    if home_exists and root_exists:
+        # Both exist - check if different
+        try:
+            home_mtime = home_dst.stat().st_mtime
+            root_mtime = root_dst.stat().st_mtime
+            if home_mtime > root_mtime:
+                actions.append(('copy', home_dst, root_dst))
+                actions.append(('chown', None, root_dst, 'root:root'))
+            elif root_mtime > home_mtime:
+                # Root is newer, but non-root wins - copy home version to root
+                actions.append(('copy', home_dst, root_dst))
+                actions.append(('chown', None, root_dst, 'root:root'))
         except:
             pass
-        try:
-            try:
-                os.unlink(dst)
-            except:
-                pass
-            print(f"* installed: {dst}")
-            shutil.copy2(src,dst,follow_symlinks=False)
-        except:
-            print('FAILED')
-            pass
+    elif home_exists and not root_exists:
+        actions.append(('copy', home_dst, root_dst))
+        actions.append(('chown', None, root_dst, 'root:root'))
+    elif root_exists and not home_exists:
+        # Backfill from root to home first
+        actions.append(('copy', root_dst, home_dst))
+        actions.append(('chown', None, home_dst, 'bile:bile'))
+
+    # Now check if repo source is newer than both
+    if should_update(src_path, home_dst):
+        actions.insert(0, ('copy', src_path, home_dst))
+        actions.insert(1, ('chown', None, home_dst, 'bile:bile'))
+        # Also need to copy to root
+        if not any(a[2] == root_dst for a in actions if a[0] == 'copy'):
+            actions.append(('copy', src_path, root_dst))
+            actions.append(('chown', None, root_dst, 'root:root'))
+    elif should_update(src_path, root_dst) and not home_exists:
+        actions.append(('copy', src_path, root_dst))
+        actions.append(('chown', None, root_dst, 'root:root'))
+    elif verbose:
+        log_action("Skipped (up-to-date)", src_path, home_dst)
+
+    return actions
+
+def main():
+    all_actions = []
+    needs_elevation = False
+
+    # First pass: collect all actions
+    for (root, dirnames, filenames) in os.walk("files/"):
+        # Skip the root directory - it's managed by home/bile sync
+        if root.startswith("files/root"):
+            continue
+
+        for filename in filenames:
+            fullpath = Path(os.path.join(root, filename))
+            src = fullpath
+            rel_path = fullpath.relative_to(fullpath.parts[0])
+            dst = Path('/') / rel_path
+
+            if str(rel_path).startswith('home/bile/'):
+                # Home file - needs bidirectional sync
+                home_dst = dst
+                root_rel = Path('root') / rel_path.relative_to('home/bile')
+                root_dst = Path('/') / root_rel
+
+                actions = process_home_file(src, home_dst, root_dst)
+                all_actions.extend(actions)
+            else:
+                # System file - just copy once
+                if should_update(src, dst):
+                    all_actions.append(('copy', src, dst))
+                    all_actions.append(('chown', None, dst, 'root:root'))
+                elif verbose:
+                    log_action("Skipped (up-to-date)", src, dst)
+
+    # Check if we need root
+    copy_targets = [a[2] for a in all_actions if a[0] == 'copy']
+    if needs_root(copy_targets) and os.geteuid() != 0 and not dry_run:
+        print("Root privileges required for some operations.")
+        if input("Elevate with sudo? [Y/n]: ").lower() in ('', 'y', 'yes'):
+            run_with_sudo()
+            return
+        else:
+            print("Aborting. Use --dry-run to preview changes.")
+            sys.exit(1)
+
+    # Execute actions
+    files_installed = 0
+    ownership_set = 0
+    errors = 0
+
+    for action in all_actions:
+        action_type = action[0]
+
+        if action_type == 'copy':
+            src, dst = action[1], action[2]
+            log_action("Installing", src, dst, dry_run)
+            files_installed += 1
+            if not dry_run:
+                if not copy_file(src, dst, dry_run):
+                    errors += 1
+
+        elif action_type == 'chown':
+            _, _, dst, owner = action
+            user, group = owner.split(':')
+            ownership_set += 1
+            if not dry_run:
+                if not chown_file(dst, user, group, dry_run):
+                    errors += 1
+
+    # Summary
+    if dry_run:
+        print(f"\n[DRY RUN SUMMARY] Would install {files_installed} files, set {ownership_set} ownerships")
+        if errors > 0:
+            print(f"[DRY RUN] {errors} operations would fail")
+    else:
+        print(f"\nInstalled {files_installed} files, set ownership on {ownership_set} files")
+        if errors > 0:
+            print(f"{errors} errors occurred")
+            sys.exit(1)
+
+if __name__ == '__main__':
+    main()

@@ -1,20 +1,46 @@
 #!/bin/sh
 
-apt update -y
-apt install -y \
-    sshfs \
-    tmux \
-    emacs-gtk \
-    ffmpeg \
-    htop \
-    btop \
-    python3 \
-    curl \
-    build-essential \
-    clangd \
-    v4l-utils \
-    vlc
+install_flatpak_and_flathub() {
+    if ! command -v flatpak >/dev/null 2>&1; then
+        if command -v apt >/dev/null 2>&1; then
+            apt install -y flatpak
+        elif command -v pacman >/dev/null 2>&1; then
+            pacman -S flatpak flatpak-kcm --noconfirm
+        fi
+    fi
 
-flatpak install \
+    if ! flatpak remotes | grep -q "^flathub"; then
+        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    fi
+}
+
+if command -v apt >/dev/null 2>&1; then
+    apt update -y
+    apt install -y \
+        sshfs \
+        tmux \
+        emacs-gtk \
+        ffmpeg \
+        htop \
+        btop \
+        python3 \
+        curl \
+        build-essential \
+        clangd \
+        v4l-utils \
+        vlc
+
+    install_flatpak_and_flathub
+    flatpak install -y \
         app.zen_browser.zen \
         net.werwolv.ImHex
+elif command -v pacman >/dev/null 2>&1; then
+    pacman -Syu --noconfirm
+    pacman -S sshfs tmux emacs ffmpeg htop btop python3 curl base-devel clang v4l-utils vlc zen-browser-bin --noconfirm
+
+    install_flatpak_and_flathub
+    flatpak install -y net.werwolv.ImHex
+else
+    echo "Error: No supported package manager found (apt or pacman)" >&2
+    exit 1
+fi

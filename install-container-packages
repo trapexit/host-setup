@@ -1,7 +1,15 @@
 #!/bin/sh
 
-apt update -y
-apt install -y \
-    podman \
-    podman-docker \
-    podman-compose
+if command -v apt >/dev/null 2>&1; then
+    apt update -y
+    apt install -y \
+        podman \
+        podman-docker \
+        podman-compose
+elif command -v pacman >/dev/null 2>&1; then
+    pacman -Syu --noconfirm
+    pacman -S podman podman-docker podman-compose --noconfirm
+else
+    echo "Error: No supported package manager found (apt or pacman)" >&2
+    exit 1
+fi
