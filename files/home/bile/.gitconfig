@@ -9,6 +9,7 @@
         last = log -1 HEAD
         amend = commit -a --amend
         squash = rebase -i origin/master
+	squash-all = "!f(){ git reset $(git commit-tree \"HEAD^{tree}\" \"$@\");};f"
 [safe]
 	directory = *
 [rerere]

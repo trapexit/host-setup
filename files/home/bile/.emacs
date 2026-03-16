@@ -32,9 +32,11 @@
 (require 'server)
 (message "Starting Emacs server...")
 (condition-case err
-    (progn
+  (progn
+    (unless (server-running-p)
       (server-start)
       (message "Emacs server started"))
+    (message "Emacs server already running"))
   (error (message "Failed to start server: %s" err)))
 
 ;; Backup settings
