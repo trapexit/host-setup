@@ -9,6 +9,7 @@ set -euo pipefail
 
 # ---------- Helper ----------
 msg() { printf '[%s] %s\n' "$(date +%T)" "$*" >&2; }
+to_mb() { awk "BEGIN {printf \"%.1f\", $1 / 1048576}"; }
 
 # ---------- Input ----------
 if [[ $# -ne 1 ]]; then
@@ -22,6 +23,31 @@ if [[ ! -f "$orig" ]]; then
     exit 1
 fi
 
+# ---------- Check dependencies ----------
+check_tool() {
+    local tool="$1"
+    local package="$2"
+    if ! command -v "$tool" &>/dev/null; then
+        msg "Error: '$tool' is not installed."
+        msg "Install it with:"
+        if command -v apt-get &>/dev/null; then
+            msg "  sudo apt-get install $package"
+        elif command -v dnf &>/dev/null; then
+            msg "  sudo dnf install $package"
+        elif command -v pacman &>/dev/null; then
+            msg "  sudo pacman -S $package"
+        elif command -v brew &>/dev/null; then
+            msg "  brew install $package"
+        else
+            msg "  Install $package using your system's package manager"
+        fi
+        exit 1
+    fi
+}
+
+check_tool qpdf qpdf
+check_tool gs ghostscript
+
 # Work in a safe temporary directory
 tmpdir=$(mktemp -d)
 msg "Created temporary directory $tmpdir"
@@ -29,22 +55,29 @@ cleanup() { rm -rf "$tmpdir"; }
 trap cleanup EXIT
 
 # ---------- Generate candidates ----------
+origsize=$(stat -c%s "$orig")
+msg "Original size: $(to_mb "$origsize") MB"
+
 # 1. qpdf only
 qpdf_out="${tmpdir}/qpdf.pdf"
 msg "Generating qpdf-only compressed PDF to $qpdf_out"
 qpdf --compress-streams=y --object-streams=generate "$orig" "$qpdf_out"
+msg "qpdf-only size: $(to_mb "$(stat -c%s "$qpdf_out")") MB"
 
 # 2. Ghostscript only
 gs_out="${tmpdir}/gs.pdf"
 msg "Generating ghostscript-only compressed PDF to $gs_out"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$gs_out" "$orig"
+msg "ghostscript-only size: $(to_mb "$(stat -c%s "$gs_out")") MB"
 
 # 3. qpdf → gs
 qpdf_gs_out="${tmpdir}/qpdf_gs.pdf"
+msg "Generating qpdf->gs compressed PDF to $qpdf_gs_out"
 qpdf --compress-streams=y --object-streams=generate "$orig" "$tmpdir/qtemp.pdf"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$qpdf_gs_out" "$tmpdir/qtemp.pdf"
+msg "qpdf->gs size: $(to_mb "$(stat -c%s "$qpdf_gs_out")") MB"
 
 # 4. gs → qpdf
 gs_qpdf_out="${tmpdir}/gs_qpdf.pdf"
@@ -52,6 +85,7 @@ msg "Generating gs->qpdf compressed PDF to $gs_qpdf_out"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$tmpdir/gtemp.pdf" "$orig"
 qpdf --compress-streams=y --object-streams=generate "$tmpdir/gtemp.pdf" "$gs_qpdf_out"
+msg "gs->qpdf size: $(to_mb "$(stat -c%s "$gs_qpdf_out")") MB"
 
 # ---------- Choose the smallest ----------
 best="$orig"
@@ -67,10 +101,10 @@ done
 
 # ---------- Replace original ----------
 if [[ "$best" != "$orig" ]]; then
-    msg "Replacing original with smallest file (${bestsize} bytes)."
+    msg "Replacing original with smallest file ($(to_mb "$bestsize") MB)."
     mv "$best" "$orig"
 else
-    msg "Original file is already the smallest."
+    msg "Original file is already the smallest ($(to_mb "$bestsize") MB)."
 fi
 
 msg "Done."
