@@ -40,10 +40,34 @@ if command -v apt >/dev/null 2>&1; then
         net.werwolv.ImHex
 elif command -v pacman >/dev/null 2>&1; then
     pacman -Syu --noconfirm
-    pacman -S sshfs tmux emacs ffmpeg htop btop python3 curl base-devel clang v4l-utils vlc zen-browser-bin --noconfirm
+    pacman -S \
+           base-devel \
+           btop \
+           clang \
+           curl \
+           emacs-wayland \
+           ffmpeg \
+           htop \
+           python3 \
+           solaar \
+           sshfs \
+           tmux \
+           v4l-utils \
+           vlc \
+           zen-browser-bin \
+           --noconfirm
 
     install_flatpak_and_flathub
-    flatpak install -y net.werwolv.ImHex
+    flatpak install -y \
+            com.github.tchx84.Flatseal \
+            io.github.ungoogled_software.ungoogled_chromium \
+            me.proton.Mail \
+            net.werwolv.ImHex \
+            org.ghidra_sre.Ghidra \
+            org.libretro.RetroArch \
+            org.signal.Signal \
+            hu.irl.cameraactrls \
+            com.chatterino.chatterino
 else
     echo "Error: No supported package manager found (apt or pacman)" >&2
     exit 1
