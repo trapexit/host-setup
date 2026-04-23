@@ -1,4 +1,5 @@
 #!/bin/sh
 
 # Disable pausing audio when headphone disconnects
+wpctl settings linking.pause-playback
 wpctl settings linking.pause-playback false
