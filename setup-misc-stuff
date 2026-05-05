@@ -1,5 +1,14 @@
 #!/bin/sh
 
+set -x
+
 # Disable pausing audio when headphone disconnects
+mkdir -p ~/.config/wireplumber/wireplumber.conf.d
+cat > ~/.config/wireplumber/wireplumber.conf.d/50-linking.conf <<EOF
+wireplumber.settings = {
+  linking.pause-playback = false
+}
+EOF
+
 wpctl settings linking.pause-playback
 wpctl settings linking.pause-playback false
