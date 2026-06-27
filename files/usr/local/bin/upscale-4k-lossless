@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# This is useful when storage is cheaper than compute and you wish to stream
+# to later stream to a RTMP target as cheaply as possible.
+
+# To stream
+# ffmpeg -re -i <source> -c:v copy -c:a copy -bsf:a -bsf:a aac_adtstoasc -f flv rtmp://...
+
+RES_X=$((1920 * 2))
+RES_X="-1"
+RES_Y=$((1080 * 2))
+INPUT=$(realpath "${1}")
+BASEPATH=$(dirname "${INPUT}")
+FILENAME=$(basename "${INPUT}")
+TMP_OUTPUT="${INPUT%.*}_TEMP.mkv"
+OUTPUT="${INPUT%.*}_[4K_lossless].mkv"
+CONTAINER_INPUT_DIR="/input"
+CONTAINER_OUTPUT_DIR="/output"
+FFMPEG_INPUT="${CONTAINER_INPUT_DIR}/${FILENAME}"
+FFMPEG_OUTPUT="${CONTAINER_OUTPUT_DIR}/$(basename "${TMP_OUTPUT}")"
+
+docker \
+    run \
+    --rm \
+    --device=/dev/dri \
+    --volume="${BASEPATH}:${CONTAINER_INPUT_DIR}:ro" \
+    --volume="${BASEPATH}:${CONTAINER_OUTPUT_DIR}" \
+    docker.io/linuxserver/ffmpeg \
+    -nostdin \
+    -hide_banner \
+    -y \
+    -fflags +discardcorrupt+genpts+igndts \
+    -err_detect ignore_err \
+    -i "${FFMPEG_INPUT}" \
+    -c:v h264_qsv \
+    -q:v 0 \
+    -c:a flac \
+    -threads 0 \
+    -vf "scale=${RES_X}:${RES_Y}:flags=spline+accurate_rnd:force_original_aspect_ratio=decrease" \
+    "${FFMPEG_OUTPUT}" && mv -fv "${TMP_OUTPUT}" "${OUTPUT}"

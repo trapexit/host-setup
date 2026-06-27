@@ -10,16 +10,47 @@ set -euo pipefail
 # ---------- Helper ----------
 msg() { printf '[%s] %s\n' "$(date +%T)" "$*" >&2; }
 to_mb() { awk "BEGIN {printf \"%.1f\", $1 / 1000000}"; }
-savings() {
+savings_pct() {
     awk -v orig="$1" -v size="$2" 'BEGIN {
         saved = orig - size
         pct = orig > 0 ? saved / orig * 100 : 0
-        printf "%.1f%%, %.1f MiB", pct, saved / 1048576
+        printf "%.1f%%", pct
     }'
+}
+savings_mib() { awk -v orig="$1" -v size="$2" 'BEGIN {printf "%.1f", (orig - size) / 1048576}'; }
+savings() {
+    printf '%s, %s MiB' "$(savings_pct "$1" "$2")" "$(savings_mib "$1" "$2")"
 }
 size_report() {
     local size="$1"
     printf '%s MB (savings: %s)' "$(to_mb "$size")" "$(savings "$origsize" "$size")"
+}
+print_table_row() {
+    local label="$1"
+    local size="$2"
+    local path="$3"
+    local selected=""
+
+    if [[ "$path" == "$best" ]]; then
+        selected="yes"
+    fi
+
+    printf '%-18s %10s %12s %14s %s\n' \
+        "$label" \
+        "$(to_mb "$size")" \
+        "$(savings_pct "$origsize" "$size")" \
+        "$(savings_mib "$origsize" "$size")" \
+        "$selected" >&2
+}
+print_results_table() {
+    msg "Compression summary:"
+    printf '%-18s %10s %12s %14s %s\n' "Version" "Size MB" "Savings %" "Savings MiB" "Selected" >&2
+    printf '%-18s %10s %12s %14s %s\n' "-------" "-------" "---------" "-----------" "--------" >&2
+    print_table_row "original input" "$origsize" "$orig"
+    print_table_row "qpdf-only" "$qpdf_size" "$qpdf_out"
+    print_table_row "ghostscript-only" "$gs_size" "$gs_out"
+    print_table_row "qpdf->gs" "$qpdf_gs_size" "$qpdf_gs_out"
+    print_table_row "gs->qpdf" "$gs_qpdf_size" "$gs_qpdf_out"
 }
 
 # ---------- Input ----------
@@ -73,14 +104,16 @@ msg "Original size: $(size_report "$origsize")"
 qpdf_out="${tmpdir}/qpdf.pdf"
 msg "Generating qpdf-only compressed PDF to $qpdf_out"
 qpdf --compress-streams=y --object-streams=generate "$orig" "$qpdf_out"
-msg "qpdf-only size: $(size_report "$(stat -c%s "$qpdf_out")")"
+qpdf_size=$(stat -c%s "$qpdf_out")
+msg "qpdf-only size: $(size_report "$qpdf_size")"
 
 # 2. Ghostscript only
 gs_out="${tmpdir}/gs.pdf"
 msg "Generating ghostscript-only compressed PDF to $gs_out"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$gs_out" "$orig"
-msg "ghostscript-only size: $(size_report "$(stat -c%s "$gs_out")")"
+gs_size=$(stat -c%s "$gs_out")
+msg "ghostscript-only size: $(size_report "$gs_size")"
 
 # 3. qpdf → gs
 qpdf_gs_out="${tmpdir}/qpdf_gs.pdf"
@@ -88,7 +121,8 @@ msg "Generating qpdf->gs compressed PDF to $qpdf_gs_out"
 qpdf --compress-streams=y --object-streams=generate "$orig" "$tmpdir/qtemp.pdf"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$qpdf_gs_out" "$tmpdir/qtemp.pdf"
-msg "qpdf->gs size: $(size_report "$(stat -c%s "$qpdf_gs_out")")"
+qpdf_gs_size=$(stat -c%s "$qpdf_gs_out")
+msg "qpdf->gs size: $(size_report "$qpdf_gs_size")"
 
 # 4. gs → qpdf
 gs_qpdf_out="${tmpdir}/gs_qpdf.pdf"
@@ -96,7 +130,8 @@ msg "Generating gs->qpdf compressed PDF to $gs_qpdf_out"
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook \
    -dNOPAUSE -dBATCH -dQUIET -sOutputFile="$tmpdir/gtemp.pdf" "$orig"
 qpdf --compress-streams=y --object-streams=generate "$tmpdir/gtemp.pdf" "$gs_qpdf_out"
-msg "gs->qpdf size: $(size_report "$(stat -c%s "$gs_qpdf_out")")"
+gs_qpdf_size=$(stat -c%s "$gs_qpdf_out")
+msg "gs->qpdf size: $(size_report "$gs_qpdf_size")"
 
 # ---------- Choose the smallest ----------
 best="$orig"
@@ -118,4 +153,5 @@ else
     msg "Original file is already the smallest ($(size_report "$bestsize"))."
 fi
 
+print_results_table
 msg "Done."

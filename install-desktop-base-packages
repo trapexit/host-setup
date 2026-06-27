@@ -18,6 +18,38 @@ install_flatpak_and_flathub() {
     fi
 }
 
+install_all_flatpaks() {
+    install_flatpak_and_flathub
+    flatpak install -y \
+        app.zen_browser.zen \
+        br.eng.silas.qpdftools \
+        com.brave.Browser \
+        com.github.gijsgoudzwaard.image-optimizer \
+        com.github.tchx84.Flatseal \
+        com.makemkv.MakeMKV \
+        com.obsproject.Studio \
+        com.plexamp.Plexamp \
+        com.rustdesk.RustDesk \
+        fr.handbrake.ghb \
+        hu.irl.cameractrls \
+        io.github.thetumultuousunicornofdarkness.cpu-x \
+        io.github.ungoogled_software.ungoogled_chromium \
+        me.proton.Mail \
+        net.werwolv.ImHex \
+        org.ghidra_sre.Ghidra \
+        org.gimp.GIMP \
+        org.kde.okular \
+        org.libretro.RetroArch \
+        org.localsend.localsend_app \
+        org.nicotine_plus.Nicotine \
+        org.remmina.Remmina \
+        org.signal.Signal \
+        org.telegram.desktop \
+        org.upscayl.Upscayl \
+        org.virt_manager.virt-manager \
+        us.zoom.Zoom
+}
+
 if command -v apt >/dev/null 2>&1; then
     apt update -y
     apt install -y \
@@ -34,10 +66,7 @@ if command -v apt >/dev/null 2>&1; then
         v4l-utils \
         vlc
 
-    install_flatpak_and_flathub
-    flatpak install -y \
-        app.zen_browser.zen \
-        net.werwolv.ImHex
+    install_all_flatpaks
 elif command -v pacman >/dev/null 2>&1; then
     pacman -Syu --noconfirm
     pacman -S \
@@ -48,26 +77,16 @@ elif command -v pacman >/dev/null 2>&1; then
            emacs-wayland \
            ffmpeg \
            htop \
+           keyd \
            python3 \
            solaar \
            sshfs \
            tmux \
            v4l-utils \
            vlc \
-           zen-browser-bin \
            --noconfirm
 
-    install_flatpak_and_flathub
-    flatpak install -y \
-            com.github.tchx84.Flatseal \
-            io.github.ungoogled_software.ungoogled_chromium \
-            me.proton.Mail \
-            net.werwolv.ImHex \
-            org.ghidra_sre.Ghidra \
-            org.libretro.RetroArch \
-            org.signal.Signal \
-            hu.irl.cameraactrls \
-            com.chatterino.chatterino
+    install_all_flatpaks
 else
     echo "Error: No supported package manager found (apt or pacman)" >&2
     exit 1

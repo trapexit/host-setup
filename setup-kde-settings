@@ -1,0 +1,151 @@
+#!/bin/sh
+
+# Applies host-agnostic KDE Plasma settings via kwriteconfig6.
+# Host-specific config (tiling layouts, per-screen wallpapers, panel
+# geometries, KScreen scale factors) is intentionally not touched here.
+
+set -e
+
+KW="kwriteconfig6"
+
+kc() { # kc <file> <group> <key> <value>
+    $KW --file "$1" --group "$2" --key "$3" "$4"
+}
+
+# --------------------------------------------------------------------------
+# kdeglobals
+# --------------------------------------------------------------------------
+F=kdeglobals
+
+kc "$F" "General"            "BrowserApplication"   "brave-browser.desktop"
+kc "$F" "General"            "UseSystemBell"         "true"
+kc "$F" "General"            "XftHintStyle"          "hintfull"
+kc "$F" "KDE"                "LookAndFeelPackage"   "org.kde.breezedark.desktop"
+kc "$F" "KDE"                "ShowDeleteCommand"     "false"
+kc "$F" "KDE"                "SmoothScroll"          "false"
+
+# File dialog defaults
+kc "$F" "KFileDialog Settings" "Allow Expansion"                 "false"
+kc "$F" "KFileDialog Settings" "Automatically select filename extension" "true"
+kc "$F" "KFileDialog Settings" "Breadcrumb Navigation"          "false"
+kc "$F" "KFileDialog Settings" "Show Full Path"                 "false"
+kc "$F" "KFileDialog Settings" "Show Inline Previews"           "true"
+kc "$F" "KFileDialog Settings" "Show Preview"                   "false"
+kc "$F" "KFileDialog Settings" "Show Speedbar"                  "true"
+kc "$F" "KFileDialog Settings" "Show hidden files"              "false"
+kc "$F" "KFileDialog Settings" "Sort by"                        "Name"
+kc "$F" "KFileDialog Settings" "Sort directories first"        "true"
+kc "$F" "KFileDialog Settings" "Sort hidden files last"         "false"
+kc "$F" "KFileDialog Settings" "Sort reversed"                  "false"
+kc "$F" "KFileDialog Settings" "View Style"                     "Detail"
+
+# Preview settings
+kc "$F" "PreviewSettings"    "EnableRemoteFolderThumbnail" "false"
+kc "$F" "PreviewSettings"    "MaximumRemoteSize"           "0"
+
+# --------------------------------------------------------------------------
+# kwinrc
+# --------------------------------------------------------------------------
+F=kwinrc
+
+kc "$F" "Compositing"        "OpenGLIsUnsafe"  "false"
+kc "$F" "EdgeBarrier"        "EdgeBarrier"     "0"
+kc "$F" "Effect-overview"    "BorderActivate"  "9"
+
+# Mouse bindings
+kc "$F" "MouseBindings" "CommandActiveTitlebar2" "Minimize"
+kc "$F" "MouseBindings" "CommandAll2"            "Minimize"
+kc "$F" "MouseBindings" "CommandAllWheel"        "Change Opacity"
+
+# Plugins
+kc "$F" "Plugins" "contrastEnabled"             "true"
+kc "$F" "Plugins" "krohnkiteEnabled"            "false"
+kc "$F" "Plugins" "magnifierEnabled"            "true"
+kc "$F" "Plugins" "rememberwindowpositionsEnabled" "true"
+kc "$F" "Plugins" "translucencyEnabled"         "true"
+kc "$F" "Plugins" "zoomEnabled"                 "false"
+
+# TabBox
+kc "$F" "TabBox" "ActivitiesMode"    "0"
+kc "$F" "TabBox" "DesktopMode"       "0"
+kc "$F" "TabBox" "HighlightWindows"  "false"
+kc "$F" "TabBox" "LayoutName"        "thumbnail_grid"
+kc "$F" "TabBox" "MultiScreenMode"   "1"
+
+# Window behavior
+kc "$F" "Windows" "DelayFocusInterval"          "100"
+kc "$F" "Windows" "FocusPolicy"                 "FocusFollowsMouse"
+kc "$F" "Windows" "FocusStealingPreventionLevel" "0"
+
+# Xwayland
+kc "$F" "Xwayland" "Scale" "1.5"
+
+# --------------------------------------------------------------------------
+# krunnerrc
+# --------------------------------------------------------------------------
+F=krunnerrc
+
+kc "$F" "Plugins" "baloosearchEnabled" "false"
+
+# --------------------------------------------------------------------------
+# kglobalshortcutsrc -- only the non-default assignments
+# --------------------------------------------------------------------------
+F=kglobalshortcutsrc
+
+kc "$F" "kwin" "Window Maximize"        "Meta+PgUp,Meta+PgUp,Maximize Window"
+kc "$F" "kwin" "Window Minimize"        "Meta+PgDown,Meta+PgDown,Minimize Window"
+kc "$F" "kwin" "Window to Next Screen"  "Meta+Shift+Right,Meta+Shift+Right,Move Window to Next Screen"
+kc "$F" "kwin" "Window to Previous Screen" "Meta+Shift+Left,Meta+Shift+Left,Move Window to Previous Screen"
+
+# Spotlight / zoom
+kc "$F" "kwin" "view_zoom_in"      "Meta++\tMeta+=,Meta++\tMeta+=,Zoom In"
+kc "$F" "kwin" "view_zoom_out"     "Meta+-,Meta+-,Zoom Out"
+kc "$F" "kwin" "view_actual_size"  "Meta+0,Meta+0,Zoom to Actual Size"
+
+# Remember Window Positions plugin shortcuts
+kc "$F" "kwin" "Remember Window Positions: Block Restore" "Meta+X,none,Remember Window Positions: Block Restoration Toggle"
+kc "$F" "kwin" "Remember Window Positions: Show Config"   "Meta+Ctrl+W,none,Remember Window Positions: Show Config"
+
+# Krohnkite bindings (plugin disabled but kept defined)
+kc "$F" "kwin" "KrohnkiteFocusDown"      "Meta+J,none,Krohnkite: Focus Down"
+kc "$F" "kwin" "KrohnkiteFocusLeft"      "Meta+H,none,Krohnkite: Focus Left"
+kc "$F" "kwin" "KrohnkiteFocusUp"        "Meta+K,none,Krohnkite: Focus Up"
+kc "$F" "kwin" "KrohnkiteFocusPrev"      "Meta+\\\\,none,Krohnkite: Focus Previous"
+kc "$F" "kwin" "KrohnkiteGrowHeight"     "Meta+Ctrl+J,none,Krohnkite: Grow Height"
+kc "$F" "kwin" "KrohnkiteShrinkHeight"   "Meta+Ctrl+K,none,Krohnkite: Shrink Height"
+kc "$F" "kwin" "KrohnkiteShrinkWidth"    "Meta+Ctrl+H,none,Krohnkite: Shrink Width"
+kc "$F" "kwin" "KrohnkitegrowWidth"      "Meta+Ctrl+L,none,Krohnkite: Grow Width"
+kc "$F" "kwin" "KrohnkiteIncrease"       "Meta+I,none,Krohnkite: Increase"
+kc "$F" "kwin" "KrohnkiteFloatAll"       "Meta+Shift+F,none,Krohnkite: Toggle Float All"
+kc "$F" "kwin" "KrohnkiteToggleFloat"   "Meta+F,none,Krohnkite: Toggle Float"
+kc "$F" "kwin" "KrohnkiteMonocleLayout" "Meta+M,none,Krohnkite: Monocle Layout"
+kc "$F" "kwin" "KrohnkiteNextLayout"    "Meta+\\\\,none,Krohnkite: Next Layout"
+kc "$F" "kwin" "KrohnkitePreviousLayout" "Meta+|,none,Krohnkite: Previous Layout"
+kc "$F" "kwin" "KrohnkiteSetMaster"     "Meta+Return,none,Krohnkite: Set master"
+kc "$F" "kwin" "KrohnkiteShiftDown"     "Meta+Shift+J,none,Krohnkite: Move Down/Next"
+kc "$F" "kwin" "KrohnkiteShiftLeft"     "Meta+Shift+H,none,Krohnkite: Move Left"
+kc "$F" "kwin" "KrohnkiteShiftRight"    "Meta+Shift+L,none,Krohnkite: Move Right"
+kc "$F" "kwin" "KrohnkiteShiftUp"       "Meta+Shift+K,none,Krohnkite: Move Up/Prev"
+
+# Session / misc
+kc "$F" "ksmserver" "Lock Session"   "Meta+L\tScreensaver,Meta+L\tScreensaver,Lock Session"
+kc "$F" "kaccess"   "Toggle Screen Reader On and Off" "Meta+Alt+S,Meta+Alt+S,Toggle Screen Reader On and Off"
+kc "$F" "plasmashell" "manage activities" "Meta+Q,Meta+Q,Show Activity Switcher"
+
+# Spectacle
+kc "$F" "services][org.kde.spectacle.desktop" "CurrentMonitorScreenShot"      "Alt+Print"
+kc "$F" "services][org.kde.spectacle.desktop" "FullScreenScreenShot"         "none"
+kc "$F" "services][org.kde.spectacle.desktop" "RectangularRegionScreenShot"  "Ctrl+Print"
+kc "$F" "services][org.kde.spectacle.desktop" "WindowUnderCursorScreenShot"  "Shift+Print"
+
+# Yakuake
+kc "$F" "yakuake" "toggle-window-state" "F12,F12,Open/Retract Yakuake"
+
+# Reload kwin to pick up changes
+if command -v qdbus6 >/dev/null 2>&1; then
+    qdbus6 org.kde.KWin /KWin reconfigure || true
+elif command -v qdbus >/dev/null 2>&1; then
+    qdbus org.kde.KWin /KWin reconfigure || true
+fi
+
+echo "KDE settings applied."
