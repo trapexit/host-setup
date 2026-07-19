@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="rtk-ai/rtk"
+INSTALL_DIR="${RTK_INSTALL_DIR:-$HOME/.local/bin}"
+DEST="$INSTALL_DIR/rtk"
+
+die() { echo "update-rtk: error: $*" >&2; exit 1; }
+
+command -v curl >/dev/null || die "curl is required"
+command -v tar  >/dev/null || die "tar is required"
+command -v jq   >/dev/null || die "jq is required"
+
+# Detect platform -> asset filename
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+case "$OS" in
+  Linux)  OS_K="unknown-linux" ;;
+  Darwin) OS_K="apple-darwin" ;;
+  *) die "unsupported OS: $OS" ;;
+esac
+case "$ARCH" in
+  x86_64|amd64) ARCH_K="x86_64" ;;
+  aarch64|arm64) ARCH_K="aarch64" ;;
+  *) die "unsupported arch: $ARCH" ;;
+esac
+
+# Linux x86_64 ships musl; Linux aarch64 ships gnu; macOS uses darwin
+if [ "$OS" = "Linux" ]; then
+  if [ "$ARCH_K" = "x86_64" ]; then LIBC="musl"; else LIBC="gnu"; fi
+  ASSET="rtk-${ARCH_K}-unknown-linux-${LIBC}.tar.gz"
+else
+  ASSET="rtk-${ARCH_K}-${OS_K}.tar.gz"
+fi
+
+mkdir -p "$INSTALL_DIR"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# Resolve latest release tag
+echo "Fetching latest release of ${REPO}..."
+TAG="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | jq -r .tag_name)"
+[ -n "$TAG" ] && [ "$TAG" != "null" ] || die "could not determine latest release tag"
+echo "Latest release: $TAG"
+
+BASE="https://github.com/${REPO}/releases/download/${TAG}"
+URL="$BASE/$ASSET"
+CHECKSUMS_URL="$BASE/checksums.txt"
+
+# Download checksums and asset
+CHECKSUMS="$TMP/checksums.txt"
+curl -fsSL "$CHECKSUMS_URL" -o "$CHECKSUMS"
+ARCHIVE="$TMP/$ASSET"
+echo "Downloading $ASSET..."
+curl -fsSL "$URL" -o "$ARCHIVE"
+
+# Verify sha256 if sha256sum/shasum available
+EXPECTED="$(grep -E "[[:space:]]+${ASSET}\$" "$CHECKSUMS" | awk '{print $1}' || true)"
+if [ -n "$EXPECTED" ]; then
+  if command -v sha256sum >/dev/null; then
+    ACTUAL="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
+  elif command -v shasum >/dev/null; then
+    ACTUAL="$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
+  else
+    ACTUAL=""
+  fi
+  if [ -n "$ACTUAL" ]; then
+    [ "$ACTUAL" = "$EXPECTED" ] || die "checksum mismatch (expected $EXPECTED, got $ACTUAL)"
+    echo "Checksum OK."
+  fi
+fi
+
+# Extract and install
+tar -xzf "$ARCHIVE" -C "$TMP"
+BIN="$(find "$TMP" -type f -name rtk -perm -u+x | head -n1 || true)"
+[ -n "$BIN" ] || BIN="$(find "$TMP" -type f -name rtk | head -n1)"
+[ -n "$BIN" ] || die "rtk binary not found in archive"
+
+install -m 0755 "$BIN" "$DEST"
+echo "Installed rtk $TAG -> $DEST"
+"$DEST" --version 2>/dev/null || true
